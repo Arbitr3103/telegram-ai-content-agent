@@ -35,11 +35,21 @@ VPS Server (24/7)
 - **Scheduler:** APScheduler
 - **Deploy:** Docker, Docker Compose
 
+## 📚 Документация
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Полное руководство по развёртыванию
+- **[PLAN.md](PLAN.md)** - Детальный план разработки (4-6 недель)
+- **[PROGRESS.md](PROGRESS.md)** - Отслеживание прогресса
+
 ## 🚀 Быстрый старт
 
-### 1. Клонирование и установка
+### Локальная разработка
 
 ```bash
+# Клонировать репозиторий
+git clone https://github.com/<username>/telegram-ai-content-agent.git
+cd telegram-ai-content-agent
+
 # Создать виртуальное окружение
 python3.11 -m venv venv
 source venv/bin/activate  # Linux/Mac
