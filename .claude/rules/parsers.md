@@ -133,6 +133,31 @@ async def search_all_sources(self, queries: List[str]):
     return all_results
 ```
 
+## Мониторинг API документаций
+
+Приоритетный источник — официальные API доки:
+
+```python
+async def search_api_documentation(self, num_results: int = 3):
+    api_queries = [
+        "site:docs.ozon.ru seller API news updates changelog",
+        "site:openapi.wildberries.ru API changes updates",
+        "site:yandex.ru/dev/market partner API updates",
+        "Ozon Seller API Performance обновление 2025 2026",
+        "Wildberries API статистика продвижение изменения",
+    ]
+    # Последовательно с задержкой 300ms (rate limit Exa)
+    for query in api_queries:
+        results = await self.search_latest_news(query, num_results)
+        await asyncio.sleep(0.3)
+```
+
+## Rate Limiting
+
+Exa API: 5 запросов/сек. При параллельных запросах — 429 ошибки.
+
+**Решение:** Последовательные запросы с `asyncio.sleep(0.3)`.
+
 ## Fallback
 
 Если Exa не вернул результаты, Habr может быть backup:

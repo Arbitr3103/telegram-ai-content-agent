@@ -75,32 +75,40 @@ CMD ["python", "-m", "app.main"]
 
 ## VPS Деплой
 
+### Сервер
+
+- **IP:** 87.228.113.203
+- **User:** vladimir
+- **Path:** `/home/vladimir/telegram-ai-content-agent`
+
 ### Требования
 
 - Ubuntu 22.04+
-- 2 CPU, 4GB RAM
-- Docker + Docker Compose
+- Python 3.11+
+- (Опционально) Docker + Docker Compose
 
 ### Установка
 
 ```bash
 # SSH на сервер
-ssh user@87.228.113.203
-
-# Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
+ssh vladimir@87.228.113.203
 
 # Проект
-git clone https://github.com/user/telegram-ai-agent.git
-cd telegram-ai-agent
+cd /home/vladimir/telegram-ai-content-agent
+git pull origin main
+
+# Виртуальное окружение
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
 # Конфиг
 cp .env.example .env
 nano .env  # Заполнить ключи
 
-# Запуск
-docker-compose up -d
+# Запуск scheduler как сервис
+sudo systemctl enable telegram-content-scheduler
+sudo systemctl start telegram-content-scheduler
 ```
 
 ## Proxy (ZenRows)
@@ -152,26 +160,51 @@ scheduler.start()
 
 ## Автозапуск (systemd)
 
+### Scheduler сервис (основной)
+
 ```ini
-# /etc/systemd/system/telegram-ai-agent.service
+# /etc/systemd/system/telegram-content-scheduler.service
 [Unit]
-Description=Telegram AI Content Agent
-After=docker.service
+Description=Telegram AI Content Scheduler
+After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/user/telegram-ai-agent
-ExecStart=/usr/bin/docker-compose up
-ExecStop=/usr/bin/docker-compose down
+User=vladimir
+WorkingDirectory=/home/vladimir/telegram-ai-content-agent
+ExecStart=/home/vladimir/telegram-ai-content-agent/venv/bin/python -m app.scheduler.content_scheduler
 Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable telegram-ai-agent
-sudo systemctl start telegram-ai-agent
+sudo systemctl daemon-reload
+sudo systemctl enable telegram-content-scheduler
+sudo systemctl start telegram-content-scheduler
+sudo systemctl status telegram-content-scheduler
+journalctl -u telegram-content-scheduler -f
+```
+
+### Docker сервис (альтернатива)
+
+```ini
+# /etc/systemd/system/telegram-ai-agent.service
+[Unit]
+Description=Telegram AI Content Agent (Docker)
+After=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/vladimir/telegram-ai-content-agent
+ExecStart=/usr/bin/docker-compose up
+ExecStop=/usr/bin/docker-compose down
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## Backup
