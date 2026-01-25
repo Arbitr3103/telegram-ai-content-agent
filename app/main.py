@@ -10,7 +10,7 @@ from app.parsers.exa_searcher import ExaSearcher
 from app.parsers.habr_parser import HabrParser
 from app.agents.content_generator import ContentGenerator
 from app.telegram.publisher import TelegramPublisher
-from app.utils.post_types import get_next_post_type, mark_post_published, get_rotation_status
+from app.utils.post_types import get_next_post_type, mark_post_published, get_rotation_status, can_publish
 
 # Настройка логирования
 logging.basicConfig(
@@ -173,14 +173,23 @@ class ContentPipeline:
             logger.error(f"Error in post generation/publication: {e}")
             return {'success': False, 'error': str(e)}
 
-    async def run_once(self, publish: bool = True):
+    async def run_once(self, publish: bool = True, force: bool = False):
         """
         Однократный запуск пайплайна
 
         Args:
             publish: Публиковать ли пост
+            force: Игнорировать проверку интервала (для тестов)
         """
         logger.info("=== Starting Content Pipeline ===")
+
+        # Проверка интервала между постами (защита от дублей)
+        if publish and not force:
+            can_pub, reason = can_publish()
+            if not can_pub:
+                logger.warning(f"Publication blocked: {reason}")
+                print(f"\n⚠️ {reason}")
+                return
 
         # Сбор источников
         sources = await self.collect_sources()

@@ -85,6 +85,33 @@ def save_state(state: dict):
         json.dump(state, f, indent=2, default=str)
 
 
+def can_publish() -> Tuple[bool, str]:
+    """
+    Проверить, можно ли публиковать (защита от дублей)
+    Минимум 6 часов между постами
+
+    Returns:
+        (can_publish, reason)
+    """
+    state = get_state()
+    last_post = state.get("last_post_date")
+
+    if not last_post:
+        return True, "OK"
+
+    from datetime import datetime, timedelta
+
+    last_post_time = datetime.fromisoformat(last_post)
+    min_interval = timedelta(hours=6)
+
+    if datetime.now() - last_post_time < min_interval:
+        time_left = min_interval - (datetime.now() - last_post_time)
+        hours_left = time_left.total_seconds() / 3600
+        return False, f"Слишком рано. Подождите ещё {hours_left:.1f} часов"
+
+    return True, "OK"
+
+
 def get_next_post_type() -> Tuple[str, dict]:
     """
     Получить следующий тип поста по ротации
