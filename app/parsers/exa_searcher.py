@@ -170,6 +170,82 @@ class ExaSearcher:
             logger.error(f"Exa technical search error: {e}")
             return []
 
+    async def search_api_documentation(
+        self,
+        num_results: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Поиск обновлений в официальных API документациях маркетплейсов
+
+        Returns:
+            Список новостей из официальных API документаций
+        """
+        if not self.api_key:
+            return []
+
+        logger.info("Exa: Searching API documentation updates")
+
+        # Официальные источники документации
+        api_queries = [
+            "site:docs.ozon.ru seller API news updates changelog",
+            "site:openapi.wildberries.ru API changes updates",
+            "site:yandex.ru/dev/market partner API updates",
+            "Ozon Seller API Performance обновление 2025 2026",
+            "Wildberries API статистика реклама новое",
+        ]
+
+        all_results = []
+
+        for query in api_queries:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{self.BASE_URL}/search",
+                        headers=self.headers,
+                        json={
+                            "query": query,
+                            "numResults": num_results,
+                            "useAutoprompt": True,
+                            "type": "auto",
+                            "contents": {
+                                "text": {"maxCharacters": 2000}
+                            }
+                        }
+                    )
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        for item in data.get("results", []):
+                            all_results.append({
+                                'title': item.get('title', ''),
+                                'url': item.get('url', ''),
+                                'content': item.get('text', '')[:1500],
+                                'published_at': item.get('publishedDate'),
+                                'source_type': 'api_docs',
+                                'relevance_score': item.get('score', 0.8),
+                                'metadata': {
+                                    'search_query': query,
+                                    'search_type': 'api_documentation'
+                                }
+                            })
+
+            except Exception as e:
+                logger.error(f"Exa API docs search error for '{query}': {e}")
+
+            await asyncio.sleep(0.3)  # Rate limit protection
+
+        # Дедупликация
+        seen_urls = set()
+        unique_results = []
+        for result in all_results:
+            url = result.get('url', '')
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_results.append(result)
+
+        logger.info(f"Exa: Found {len(unique_results)} API documentation updates")
+        return unique_results
+
     async def search_company_info(
         self,
         company_name: str,
@@ -255,15 +331,15 @@ class ExaSearcher:
 
         all_results = []
 
-        # Параллельный поиск по всем запросам
-        tasks = []
+        # Последовательный поиск с задержкой (rate limit: 5 req/sec)
+        results_lists = []
         for query in queries:
-            tasks.append(self.search_latest_news(query, num_results_per_query))
-
-        results_lists = await asyncio.gather(*tasks, return_exceptions=True)
+            result = await self.search_latest_news(query, num_results_per_query)
+            results_lists.append(result)
+            await asyncio.sleep(0.3)  # 300ms между запросами
 
         for results in results_lists:
-            if isinstance(results, list):
+            if results:
                 all_results.extend(results)
 
         # Дедупликация по URL

@@ -48,25 +48,47 @@ class ContentPipeline:
 
         # Поисковые запросы для Exa (фокус на русские маркетплейсы)
         exa_queries = [
+            # Общие новости маркетплейсов
             "Ozon селлер новости обновления 2025",
             "Wildberries продавцы изменения комиссии",
-            "Яндекс Маркет API изменения",
-            "аналитика продаж Ozon Wildberries кейс"
+            "Яндекс Маркет продавцы новости",
+
+            # Официальные API документации (проверка обновлений)
+            "site:docs.ozon.ru API новости обновления seller",
+            "site:openapi.wildberries.ru изменения API",
+            "site:yandex.ru/dev/market API изменения",
+
+            # Performance API и аналитика
+            "Ozon Performance API реклама обновления",
+            "Wildberries API статистика продвижение",
+            "Яндекс Маркет аналитика API отчёты",
+
+            # Кейсы и практика
+            "автоматизация Ozon Wildberries кейс результаты"
         ]
 
         # Теги для Habr
         habr_tags = ['etl', 'ozon', 'wildberries', 'e-commerce', 'маркетплейсы']
 
-        # Сбор из Exa
+        # Сбор из Exa (общие новости)
         try:
             exa_sources = await self.exa_searcher.search_all_sources(
                 queries=exa_queries,
-                num_results_per_query=3
+                num_results_per_query=2
             )
             all_sources.extend(exa_sources)
             logger.info(f"Collected {len(exa_sources)} sources from Exa")
         except Exception as e:
             logger.error(f"Error collecting from Exa: {e}")
+
+        # Сбор из официальных API документаций (приоритетный источник)
+        try:
+            api_docs = await self.exa_searcher.search_api_documentation(num_results=2)
+            # Добавляем в начало списка как приоритетные
+            all_sources = api_docs + all_sources
+            logger.info(f"Collected {len(api_docs)} sources from API docs")
+        except Exception as e:
+            logger.error(f"Error collecting API docs: {e}")
 
         # Сбор из Habr
         try:
