@@ -22,10 +22,10 @@
 
 1. Откройте Telegram
 2. Нажмите ☰ → **Новый канал**
-3. Введите название: `ETL для маркетплейсов`
-4. Описание: `Автоматизация и ETL системы для Ozon, Wildberries. Кейсы, инсайты, код.`
+3. Введите название: `Умная аналитика для маркетплейсов`
+4. Описание: `Аналитика и автоматизация для Ozon, Wildberries. Кейсы, инсайты, системы для роста продаж.`
 5. Выберите **Публичный канал**
-6. Установите username: `@etl_marketplace` (или любой доступный)
+6. Установите username: `@smart_analytics_mp` (или любой доступный)
 7. Нажмите **Создать**
 
 ### Шаг 1.2: Создать Telegram бота
@@ -55,7 +55,7 @@
 
 ### Шаг 1.4: Добавить бота в канал как администратора
 
-1. Откройте ваш канал `ETL для маркетплейсов`
+1. Откройте ваш канал `Умная аналитика для маркетплейсов`
 2. Нажмите на название канала → **Администраторы**
 3. **Добавить администратора**
 4. Найдите вашего бота `@etl_content_agent_bot`
@@ -73,7 +73,7 @@
 3. Найдите `"chat":{"id":-1001234567890}` - это ваш Channel ID
 
 **Способ 2 (через username):**
-- Если канал публичный с username `@etl_marketplace`, можно использовать `@etl_marketplace` как Channel ID
+- Если канал публичный с username `@smart_analytics_mp`, можно использовать `@smart_analytics_mp` как Channel ID
 
 ### Шаг 1.6: Обновить .env файл
 
@@ -85,7 +85,7 @@ nano .env
 Добавьте:
 ```env
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_CHANNEL_ID=@etl_marketplace
+TELEGRAM_CHANNEL_ID=@smart_analytics_mp
 TELEGRAM_ADMIN_ID=<ваш_личный_telegram_id>
 ```
 
@@ -314,7 +314,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 
 # Telegram
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_CHANNEL_ID=@etl_marketplace
+TELEGRAM_CHANNEL_ID=@smart_analytics_mp
 TELEGRAM_ADMIN_ID=123456789
 
 # Database (для Docker)
