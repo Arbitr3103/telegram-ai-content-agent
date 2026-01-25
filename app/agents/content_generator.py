@@ -44,7 +44,7 @@ class ContentGenerator:
 
         logger.info(f"ContentGenerator initialized with model: {self.model}")
 
-    async def generate_post(self, sources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def generate_post(self, sources: List[Dict[str, Any]], post_type_instruction: str = "") -> Dict[str, Any]:
         """
         Генерация поста на основе источников
 
@@ -60,7 +60,10 @@ class ContentGenerator:
         sources_text = self._prepare_sources_text(sources)
 
         # Формируем промпт
-        prompt = CONTENT_GENERATION_PROMPT.format(sources=sources_text)
+        prompt = CONTENT_GENERATION_PROMPT.format(
+            sources=sources_text,
+            post_type_instruction=post_type_instruction
+        )
 
         try:
             # Генерация через Claude

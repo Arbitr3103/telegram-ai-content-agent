@@ -10,6 +10,7 @@ from app.parsers.exa_searcher import ExaSearcher
 from app.parsers.habr_parser import HabrParser
 from app.agents.content_generator import ContentGenerator
 from app.telegram.publisher import TelegramPublisher
+from app.utils.post_types import get_next_post_type, mark_post_published, get_rotation_status
 
 # Настройка логирования
 logging.basicConfig(
@@ -124,9 +125,16 @@ class ContentPipeline:
             logger.warning("No sources provided for post generation")
             return {'success': False, 'error': 'No sources'}
 
-        # Генерация поста
+        # Определяем тип поста по ротации "3 кита"
+        post_type_key, post_type_config = get_next_post_type()
+        logger.info(f"Post type: {post_type_config['name']}")
+
+        # Генерация поста с учётом типа
         try:
-            post_data = await self.content_generator.generate_post(sources)
+            post_data = await self.content_generator.generate_post(
+                sources,
+                post_type_instruction=post_type_config['prompt_addition']
+            )
             logger.info("Post generated successfully")
 
             if publish:
@@ -138,9 +146,12 @@ class ContentPipeline:
 
                 if result['success']:
                     logger.info(f"Post published. Message ID: {result['message_id']}")
+                    # Отмечаем тип поста как опубликованный для ротации
+                    mark_post_published(post_type_key)
                     return {
                         'success': True,
                         'post': post_data,
+                        'post_type': post_type_config['name'],
                         'telegram': result
                     }
                 else:
