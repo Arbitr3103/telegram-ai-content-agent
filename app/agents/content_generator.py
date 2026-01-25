@@ -6,9 +6,8 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 
-from langchain_anthropic import ChatAnthropic
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+import httpx
+from anthropic import Anthropic
 
 from app.config import settings
 from app.utils.prompts import CONTENT_GENERATION_PROMPT, RELEVANCE_EVALUATION_PROMPT
@@ -30,11 +29,17 @@ class ContentGenerator:
         self.api_key = api_key or settings.anthropic_api_key
         self.model = model or settings.claude_model
 
-        self.llm = ChatAnthropic(
-            model=self.model,
+        # Настройка HTTP клиента с proxy
+        proxy_url = settings.proxy_url
+        if proxy_url:
+            logger.info(f"Using proxy: {proxy_url.split('@')[-1]}")
+            http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
+        else:
+            http_client = httpx.Client(timeout=60.0)
+
+        self.client = Anthropic(
             api_key=self.api_key,
-            temperature=settings.claude_temperature,
-            max_tokens=settings.claude_max_tokens,
+            http_client=http_client
         )
 
         logger.info(f"ContentGenerator initialized with model: {self.model}")
@@ -51,31 +56,38 @@ class ContentGenerator:
         """
         logger.info(f"Generating post from {len(sources)} sources")
 
-        # Подготовка резюме источников
-        sources_summary = self._prepare_sources_summary(sources)
+        # Подготовка текста источников
+        sources_text = self._prepare_sources_text(sources)
 
-        # Создание промпта
-        prompt = PromptTemplate(
-            input_variables=["sources_summary"],
-            template=CONTENT_GENERATION_PROMPT
-        )
+        # Формируем промпт
+        prompt = CONTENT_GENERATION_PROMPT.format(sources=sources_text)
 
-        chain = LLMChain(llm=self.llm, prompt=prompt)
-
-        # Генерация
         try:
-            result = await chain.arun(sources_summary=sources_summary)
+            # Генерация через Claude
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=settings.claude_max_tokens,
+                temperature=settings.claude_temperature,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            raw_text = response.content[0].text
             logger.info("Post generated successfully")
 
-            # Парсинг ответа
-            parsed = self._parse_generated_content(result)
+            # Очистка поста от служебных меток
+            cleaned_text = self._clean_post(raw_text)
+
+            # Извлечение тегов
+            tags = self._extract_tags(cleaned_text)
 
             return {
-                'content': parsed['post'],
-                'tags': parsed['tags'],
-                'sources': parsed['sources'],
+                'content': cleaned_text,
+                'tags': tags,
+                'sources': [{'name': s.get('title', ''), 'url': s.get('url', '')} for s in sources[:3]],
                 'metadata': {
-                    'raw_output': result,
+                    'raw_output': raw_text,
                     'model': self.model,
                     'sources_count': len(sources)
                 }
@@ -85,57 +97,48 @@ class ContentGenerator:
             logger.error(f"Error generating post: {e}")
             raise
 
-    def _prepare_sources_summary(self, sources: List[Dict[str, Any]]) -> str:
-        """Подготовка резюме источников для промпта"""
-        summary_parts = []
+    def _prepare_sources_text(self, sources: List[Dict[str, Any]]) -> str:
+        """Подготовка текста источников для промпта"""
+        parts = []
 
         for i, source in enumerate(sources, 1):
             title = source.get('title', 'Без заголовка')
-            content = source.get('content', '')[:500]  # Первые 500 символов
-            url = source.get('url', 'N/A')
-            source_type = source.get('source_type', 'unknown')
+            content = source.get('content', '')[:500]
+            url = source.get('url', '')
+            source_type = source.get('source_type', 'web')
 
-            summary_parts.append(
+            parts.append(
                 f"{i}. [{source_type}] {title}\n"
                 f"   URL: {url}\n"
                 f"   Контент: {content}...\n"
             )
 
-        return "\n".join(summary_parts)
+        return "\n".join(parts)
 
-    def _parse_generated_content(self, raw_text: str) -> Dict[str, Any]:
-        """
-        Парсинг сгенерированного контента
+    def _clean_post(self, text: str) -> str:
+        """Очистка поста от служебных меток"""
+        # Убираем разделители ---
+        text = re.sub(r"^-+\s*", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\s*-+$", "", text, flags=re.MULTILINE)
 
-        Args:
-            raw_text: Сырой текст от Claude
+        # Убираем служебные метки в начале строк
+        text = re.sub(
+            r"^(ПОСТ|POST|КОНТЕНТ|CONTENT|ТЕГИ|TAGS|ИСТОЧНИКИ|SOURCES|ХЕШТЕГИ):\s*",
+            "",
+            text,
+            flags=re.MULTILINE | re.IGNORECASE
+        )
 
-        Returns:
-            Словарь с распарсенными данными
-        """
-        # Извлечение поста
-        post_match = re.search(r'ПОСТ:\s*\n(.*?)\n\nТЕГИ:', raw_text, re.DOTALL)
-        post_content = post_match.group(1).strip() if post_match else raw_text
+        # Очистка пустых строк
+        text = text.strip()
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
-        # Извлечение тегов
-        tags_match = re.search(r'ТЕГИ:\s*(.+)', raw_text)
-        tags_str = tags_match.group(1).strip() if tags_match else ""
-        tags = [tag.strip() for tag in tags_str.split() if tag.startswith('#')]
+        return text
 
-        # Извлечение источников
-        sources = []
-        sources_section = re.search(r'ИСТОЧНИКИ:\s*\n(.*)', raw_text, re.DOTALL)
-        if sources_section:
-            sources_text = sources_section.group(1)
-            # Парсинг списка источников
-            source_lines = re.findall(r'-\s*\[(.+?)\]\s*\((.+?)\)', sources_text)
-            sources = [{'name': name, 'url': url} for name, url in source_lines]
-
-        return {
-            'post': post_content,
-            'tags': tags,
-            'sources': sources
-        }
+    def _extract_tags(self, text: str) -> List[str]:
+        """Извлечение хештегов из текста"""
+        tags = re.findall(r'#(\w+)', text)
+        return tags
 
     async def evaluate_relevance(
         self,
@@ -156,18 +159,25 @@ class ContentGenerator:
         """
         content_preview = content[:500] if len(content) > 500 else content
 
-        prompt = PromptTemplate(
-            input_variables=["title", "content_preview"],
-            template=RELEVANCE_EVALUATION_PROMPT
+        prompt = RELEVANCE_EVALUATION_PROMPT.format(
+            title=title,
+            content_preview=content_preview
         )
 
-        chain = LLMChain(llm=self.llm, prompt=prompt)
-
         try:
-            result = await chain.arun(title=title, content_preview=content_preview)
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                temperature=0.3,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            result_text = response.content[0].text
 
             # Парсинг JSON ответа
-            json_match = re.search(r'\{.*\}', result, re.DOTALL)
+            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
             if json_match:
                 evaluation = json.loads(json_match.group(0))
                 return evaluation
@@ -217,13 +227,13 @@ if __name__ == "__main__":
             {
                 'title': 'Ozon обновил API до версии 3.0',
                 'content': 'Новая версия API Ozon включает улучшенную производительность...',
-                'url': 'https://example.com/ozon-api-v3',
+                'url': 'https://docs.ozon.ru/api/v3',
                 'source_type': 'news'
             },
             {
                 'title': 'ETL лучшие практики для e-commerce',
                 'content': 'Оптимизация ETL пайплайнов для обработки данных маркетплейсов...',
-                'url': 'https://habr.com/etl-best-practices',
+                'url': 'https://habr.com/ru/articles/123456',
                 'source_type': 'habr'
             }
         ]
@@ -233,9 +243,6 @@ if __name__ == "__main__":
 
         print("GENERATED POST:")
         print(post['content'])
-        print("\nTAGS:", ' '.join(post['tags']))
-        print("\nSOURCES:")
-        for source in post['sources']:
-            print(f"- {source['name']}: {source['url']}")
+        print("\nTAGS:", ' '.join(['#' + t for t in post['tags']]))
 
     asyncio.run(main())

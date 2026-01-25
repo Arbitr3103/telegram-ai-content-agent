@@ -1,11 +1,15 @@
 """
 Exa API парсер для поиска актуальной информации
-Использует MCP сервер exa-mcp-server через Claude Code
+Использует реальный Exa API для поиска новостей и технического контента
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import logging
+
+import httpx
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,20 +17,28 @@ logger = logging.getLogger(__name__)
 class ExaSearcher:
     """Класс для поиска информации через Exa API"""
 
+    BASE_URL = "https://api.exa.ai"
+
     def __init__(self, api_key: Optional[str] = None):
         """
         Инициализация Exa Searcher
 
         Args:
-            api_key: API ключ Exa (опционально, если используется MCP сервер)
+            api_key: API ключ Exa (если None, берётся из настроек)
         """
-        self.api_key = api_key
+        self.api_key = api_key or settings.exa_api_key
+        if not self.api_key:
+            logger.warning("Exa API key not provided, searcher will return empty results")
+        self.headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self.api_key or ""
+        }
 
     async def search_latest_news(
         self,
         query: str,
-        num_results: int = 10,
-        context_max_characters: int = 10000
+        num_results: int = 5,
+        days_back: int = 7
     ) -> List[Dict[str, Any]]:
         """
         Поиск последних новостей по запросу
@@ -34,43 +46,70 @@ class ExaSearcher:
         Args:
             query: Поисковый запрос
             num_results: Количество результатов
-            context_max_characters: Максимальное количество символов контекста
+            days_back: За сколько дней искать
 
         Returns:
             Список найденных источников
         """
-        logger.info(f"Searching for news: {query}")
+        if not self.api_key:
+            logger.warning("Exa API key not set, returning empty results")
+            return []
 
-        # NOTE: В production версии здесь будет прямой вызов Exa API
-        # Сейчас возвращаем заглушку для тестирования структуры
+        logger.info(f"Exa: Searching news for '{query}'")
 
-        results = []
+        # Дата начала поиска
+        start_date = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        # Пример структуры результата
-        # В реальности это будет вызов mcp__plugin_exa-mcp-server_exa__web_search_exa
-        example_result = {
-            'title': f"Пример новости по запросу: {query}",
-            'url': 'https://example.com',
-            'content': 'Пример контента новости...',
-            'published_at': datetime.utcnow(),
-            'source_type': 'exa',
-            'relevance_score': 0.95,
-            'metadata': {
-                'search_query': query,
-                'search_type': 'news'
-            }
-        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.BASE_URL}/search",
+                    headers=self.headers,
+                    json={
+                        "query": query,
+                        "numResults": num_results,
+                        "startPublishedDate": start_date,
+                        "useAutoprompt": True,
+                        "type": "auto",
+                        "contents": {
+                            "text": {"maxCharacters": 1500}
+                        }
+                    }
+                )
 
-        results.append(example_result)
+                if response.status_code != 200:
+                    logger.error(f"Exa API error: {response.status_code} - {response.text}")
+                    return []
 
-        logger.info(f"Found {len(results)} news items")
-        return results
+                data = response.json()
+                results = []
+
+                for item in data.get("results", []):
+                    results.append({
+                        'title': item.get('title', 'Без заголовка'),
+                        'url': item.get('url', ''),
+                        'content': item.get('text', '')[:1000],
+                        'published_at': item.get('publishedDate'),
+                        'source_type': 'exa_news',
+                        'relevance_score': item.get('score', 0.5),
+                        'metadata': {
+                            'search_query': query,
+                            'search_type': 'news',
+                            'author': item.get('author', '')
+                        }
+                    })
+
+                logger.info(f"Exa: Found {len(results)} news items for '{query}'")
+                return results
+
+        except Exception as e:
+            logger.error(f"Exa search error: {e}")
+            return []
 
     async def search_technical_content(
         self,
         query: str,
-        num_results: int = 5,
-        context_max_characters: int = 10000
+        num_results: int = 5
     ) -> List[Dict[str, Any]]:
         """
         Поиск технического контента (статьи, документация)
@@ -78,65 +117,58 @@ class ExaSearcher:
         Args:
             query: Поисковый запрос
             num_results: Количество результатов
-            context_max_characters: Максимальное количество символов контекста
 
         Returns:
             Список найденных источников
         """
-        logger.info(f"Searching for technical content: {query}")
+        if not self.api_key:
+            return []
 
-        results = []
+        logger.info(f"Exa: Searching technical content for '{query}'")
 
-        example_result = {
-            'title': f"Техническая статья: {query}",
-            'url': 'https://habr.com/example',
-            'content': 'Техническое содержание статьи...',
-            'published_at': datetime.utcnow(),
-            'source_type': 'exa',
-            'relevance_score': 0.88,
-            'metadata': {
-                'search_query': query,
-                'search_type': 'technical'
-            }
-        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.BASE_URL}/search",
+                    headers=self.headers,
+                    json={
+                        "query": query,
+                        "numResults": num_results,
+                        "useAutoprompt": True,
+                        "type": "auto",
+                        "contents": {
+                            "text": {"maxCharacters": 2000}
+                        }
+                    }
+                )
 
-        results.append(example_result)
+                if response.status_code != 200:
+                    logger.error(f"Exa API error: {response.status_code}")
+                    return []
 
-        logger.info(f"Found {len(results)} technical articles")
-        return results
+                data = response.json()
+                results = []
 
-    async def get_code_context(
-        self,
-        query: str,
-        tokens_num: int = 5000
-    ) -> Dict[str, Any]:
-        """
-        Получение контекста кода для программирования
+                for item in data.get("results", []):
+                    results.append({
+                        'title': item.get('title', 'Без заголовка'),
+                        'url': item.get('url', ''),
+                        'content': item.get('text', '')[:1500],
+                        'published_at': item.get('publishedDate'),
+                        'source_type': 'exa_tech',
+                        'relevance_score': item.get('score', 0.5),
+                        'metadata': {
+                            'search_query': query,
+                            'search_type': 'technical'
+                        }
+                    })
 
-        Args:
-            query: Запрос для поиска кода
-            tokens_num: Количество токенов контекста (1000-50000)
+                logger.info(f"Exa: Found {len(results)} technical articles")
+                return results
 
-        Returns:
-            Контекст кода
-        """
-        logger.info(f"Getting code context: {query}")
-
-        # NOTE: В production это будет вызов mcp__plugin_exa-mcp-server_exa__get_code_context_exa
-
-        result = {
-            'title': f"Code context: {query}",
-            'content': f"# Example code context for {query}\n\n```python\n# Code example\n```",
-            'source_type': 'exa_code',
-            'relevance_score': 0.92,
-            'metadata': {
-                'search_query': query,
-                'tokens_num': tokens_num
-            }
-        }
-
-        logger.info("Code context retrieved")
-        return result
+        except Exception as e:
+            logger.error(f"Exa technical search error: {e}")
+            return []
 
     async def search_company_info(
         self,
@@ -144,7 +176,7 @@ class ExaSearcher:
         num_results: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Исследование компаний (для поиска информации об Ozon, Wildberries и т.д.)
+        Исследование компаний (Ozon, Wildberries и т.д.)
 
         Args:
             company_name: Название компании
@@ -153,34 +185,59 @@ class ExaSearcher:
         Returns:
             Список найденной информации о компании
         """
-        logger.info(f"Researching company: {company_name}")
+        if not self.api_key:
+            return []
 
-        # NOTE: В production это будет вызов mcp__plugin_exa-mcp-server_exa__company_research_exa
+        logger.info(f"Exa: Researching company '{company_name}'")
 
-        results = []
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.BASE_URL}/search",
+                    headers=self.headers,
+                    json={
+                        "query": f"{company_name} новости аналитика обновления",
+                        "numResults": num_results,
+                        "useAutoprompt": True,
+                        "type": "auto",
+                        "contents": {
+                            "text": {"maxCharacters": 1500}
+                        }
+                    }
+                )
 
-        example_result = {
-            'title': f"Информация о компании {company_name}",
-            'url': f'https://example.com/{company_name}',
-            'content': f'Исследование компании {company_name}...',
-            'published_at': datetime.utcnow(),
-            'source_type': 'exa_company',
-            'relevance_score': 0.90,
-            'metadata': {
-                'company_name': company_name,
-                'search_type': 'company_research'
-            }
-        }
+                if response.status_code != 200:
+                    logger.error(f"Exa API error: {response.status_code}")
+                    return []
 
-        results.append(example_result)
+                data = response.json()
+                results = []
 
-        logger.info(f"Found {len(results)} company insights")
-        return results
+                for item in data.get("results", []):
+                    results.append({
+                        'title': item.get('title', ''),
+                        'url': item.get('url', ''),
+                        'content': item.get('text', '')[:1000],
+                        'published_at': item.get('publishedDate'),
+                        'source_type': 'exa_company',
+                        'relevance_score': item.get('score', 0.5),
+                        'metadata': {
+                            'company_name': company_name,
+                            'search_type': 'company_research'
+                        }
+                    })
+
+                logger.info(f"Exa: Found {len(results)} company insights")
+                return results
+
+        except Exception as e:
+            logger.error(f"Exa company research error: {e}")
+            return []
 
     async def search_all_sources(
         self,
         queries: List[str],
-        num_results_per_query: int = 5
+        num_results_per_query: int = 3
     ) -> List[Dict[str, Any]]:
         """
         Комплексный поиск по нескольким запросам
@@ -192,27 +249,34 @@ class ExaSearcher:
         Returns:
             Агрегированный список всех найденных источников
         """
+        if not self.api_key:
+            logger.warning("Exa API key not set, returning empty results")
+            return []
+
         all_results = []
 
+        # Параллельный поиск по всем запросам
+        tasks = []
         for query in queries:
-            # Параллельный поиск новостей и технического контента
-            news = await self.search_latest_news(query, num_results_per_query)
-            technical = await self.search_technical_content(query, num_results_per_query // 2)
+            tasks.append(self.search_latest_news(query, num_results_per_query))
 
-            all_results.extend(news)
-            all_results.extend(technical)
+        results_lists = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for results in results_lists:
+            if isinstance(results, list):
+                all_results.extend(results)
 
         # Дедупликация по URL
         seen_urls = set()
         unique_results = []
 
         for result in all_results:
-            url = result.get('url')
+            url = result.get('url', '')
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_results.append(result)
 
-        logger.info(f"Total unique sources found: {len(unique_results)}")
+        logger.info(f"Exa: Total unique sources found: {len(unique_results)}")
         return unique_results
 
 
@@ -236,27 +300,19 @@ async def fetch_exa_sources(
     return await searcher.search_all_sources(queries)
 
 
-# Примеры использования
-
 if __name__ == "__main__":
-    # Пример использования
     async def main():
         searcher = ExaSearcher()
 
-        # Поиск новостей
-        news = await searcher.search_latest_news("Ozon API updates 2026")
-        print(f"Found {len(news)} news items")
+        # Тест поиска новостей
+        news = await searcher.search_latest_news("Ozon API маркетплейс", num_results=3)
+        print(f"\nНайдено новостей: {len(news)}")
+        for item in news:
+            print(f"  - {item['title'][:60]}...")
+            print(f"    URL: {item['url']}")
 
-        # Поиск технического контента
-        tech = await searcher.search_technical_content("ETL pipeline for e-commerce")
-        print(f"Found {len(tech)} technical articles")
-
-        # Получение контекста кода
-        code = await searcher.get_code_context("Python asyncio best practices")
-        print(f"Code context: {code['title']}")
-
-        # Исследование компании
+        # Тест исследования компании
         company = await searcher.search_company_info("Wildberries")
-        print(f"Found {len(company)} company insights")
+        print(f"\nИнформация о компании: {len(company)} результатов")
 
     asyncio.run(main())

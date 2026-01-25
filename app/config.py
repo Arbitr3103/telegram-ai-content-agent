@@ -21,9 +21,12 @@ class Settings(BaseSettings):
 
     # Anthropic API
     anthropic_api_key: str
-    claude_model: str = "claude-sonnet-4-5-20250929"
+    claude_model: str = "claude-3-haiku-20240307"
     claude_temperature: float = 0.7
     claude_max_tokens: int = 2000
+
+    # Proxy для обхода гео-блокировок
+    proxy_url: str | None = None
 
     # Telegram Bot
     telegram_bot_token: str

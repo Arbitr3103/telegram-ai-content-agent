@@ -46,12 +46,12 @@ class ContentPipeline:
 
         all_sources = []
 
-        # Поисковые запросы для Exa
+        # Поисковые запросы для Exa (фокус на русские маркетплейсы)
         exa_queries = [
-            "Ozon API updates 2026",
-            "Wildberries seller automation",
-            "ETL pipeline для e-commerce",
-            "маркетплейсы аналитика"
+            "Ozon селлер новости обновления 2025",
+            "Wildberries продавцы изменения комиссии",
+            "Яндекс Маркет API изменения",
+            "аналитика продаж Ozon Wildberries кейс"
         ]
 
         # Теги для Habr
@@ -188,7 +188,7 @@ async def main():
 
     try:
         # Запуск пайплайна (publish=False для тестирования без публикации)
-        await pipeline.run_once(publish=False)
+        await pipeline.run_once(publish=True)
     finally:
         await pipeline.close()
 
