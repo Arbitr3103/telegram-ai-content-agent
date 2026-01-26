@@ -1,6 +1,7 @@
 """
 Сервис уведомлений администратора о заявках
 """
+import html
 import logging
 from typing import Optional, Dict, Any
 
@@ -12,6 +13,13 @@ from app.config import settings
 from app.client_bot.texts.messages import ADMIN_NEW_LEAD, ADMIN_CONTACT_REQUEST
 
 logger = logging.getLogger(__name__)
+
+
+def escape_html(text: str) -> str:
+    """Экранирование HTML-символов в пользовательском вводе"""
+    if not text:
+        return text
+    return html.escape(str(text))
 
 
 class LeadNotifier:
@@ -55,14 +63,14 @@ class LeadNotifier:
         activity_text = "\n".join(activity_lines) if activity_lines else "• Минимальная"
 
         message = ADMIN_NEW_LEAD.format(
-            name=name or "Не указано",
-            username=username or "Не указан",
-            contact_method=contact_method or "Не указан",
-            sku_count=sku_count or "Не указано",
-            urgency=urgency or "Не указана",
-            marketplaces=", ".join(marketplaces) if marketplaces else "Не указаны",
-            budget=budget or "Не указан",
-            task=task or "Не указана",
+            name=escape_html(name) or "Не указано",
+            username=escape_html(username) or "Не указан",
+            contact_method=escape_html(contact_method) or "Не указан",
+            sku_count=escape_html(sku_count) or "Не указано",
+            urgency=escape_html(urgency) or "Не указана",
+            marketplaces=escape_html(", ".join(marketplaces)) if marketplaces else "Не указаны",
+            budget=escape_html(budget) or "Не указан",
+            task=escape_html(task) or "Не указана",
             bot_activity=activity_text
         )
 
@@ -70,7 +78,7 @@ class LeadNotifier:
             await self.bot.send_message(
                 chat_id=self.admin_id,
                 text=message,
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.HTML
             )
             logger.info(f"Lead notification sent for @{username}")
             return True

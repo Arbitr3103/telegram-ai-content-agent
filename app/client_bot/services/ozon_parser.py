@@ -9,6 +9,8 @@ from dataclasses import dataclass
 import httpx
 from bs4 import BeautifulSoup
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,7 +65,7 @@ def extract_seller_id(url: str) -> Optional[str]:
 
 async def parse_ozon_seller(seller_id: str) -> Dict[str, Any]:
     """
-    Парсинг данных о продавце Ozon
+    Парсинг данных о продавце Ozon через ZenRows Scraper API
 
     Args:
         seller_id: ID продавца
@@ -74,26 +76,35 @@ async def parse_ozon_seller(seller_id: str) -> Dict[str, Any]:
     Raises:
         OzonParseError: при ошибке парсинга
     """
-    url = f"https://www.ozon.ru/seller/{seller_id}/"
+    target_url = f"https://www.ozon.ru/seller/{seller_id}/"
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+    # Используем ZenRows Scraper API для обхода защиты
+    zenrows_key = settings.zenrows_api_key
+    if not zenrows_key:
+        raise OzonParseError("ZenRows API key не настроен")
+
+    # ZenRows API с JS-рендерингом
+    api_url = "https://api.zenrows.com/v1/"
+    params = {
+        "apikey": zenrows_key,
+        "url": target_url,
+        "js_render": "true",  # Рендерить JavaScript
+        "premium_proxy": "true",  # Премиум прокси
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(url, headers=headers)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(api_url, params=params)
 
             if response.status_code != 200:
+                logger.error(f"ZenRows API error: {response.status_code} - {response.text[:200]}")
                 raise OzonParseError(f"HTTP {response.status_code}")
 
             soup = BeautifulSoup(response.text, 'lxml')
 
             result = {
                 "seller_id": seller_id,
-                "url": url,
+                "url": target_url,
                 "name": _extract_seller_name(soup),
                 "rating": _extract_seller_rating(soup),
                 "products_count": _extract_products_count(soup),
@@ -103,7 +114,7 @@ async def parse_ozon_seller(seller_id: str) -> Dict[str, Any]:
             return result
 
     except httpx.TimeoutException:
-        raise OzonParseError("Timeout при запросе к Ozon")
+        raise OzonParseError("Timeout при запросе к ZenRows")
     except httpx.RequestError as e:
         raise OzonParseError(f"Ошибка запроса: {e}")
     except Exception as e:

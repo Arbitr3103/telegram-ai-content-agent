@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Exa API
     exa_api_key: str | None = None
 
+    # ZenRows Scraper API
+    zenrows_api_key: str | None = None
+
     # Sentry
     sentry_dsn: str | None = None
 

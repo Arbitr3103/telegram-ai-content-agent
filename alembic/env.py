@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Import models для автогенерации миграций
-from app.database.models import Base
+from app.database.client_models import Base
 
 # Alembic Config object
 config = context.config

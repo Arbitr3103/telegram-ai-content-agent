@@ -8,7 +8,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Главное меню"""
     keyboard = [
-        [InlineKeyboardButton("📊 Аудит магазина на Ozon", callback_data="audit")],
         [InlineKeyboardButton("💸 Калькулятор упущенной выгоды", callback_data="calculator")],
         [InlineKeyboardButton("❓ Частые вопросы", callback_data="faq")],
         [InlineKeyboardButton("📝 Оставить заявку", callback_data="application")],
@@ -207,8 +206,8 @@ def get_contact_method_keyboard() -> InlineKeyboardMarkup:
 def get_contact_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура после запроса на связь"""
     keyboard = [
-        [InlineKeyboardButton("📊 Пройти аудит магазина", callback_data="audit")],
         [InlineKeyboardButton("💸 Рассчитать упущенную выгоду", callback_data="calculator")],
+        [InlineKeyboardButton("❓ Частые вопросы", callback_data="faq")],
         [InlineKeyboardButton("🏠 Вернуться в меню", callback_data="menu")],
     ]
     return InlineKeyboardMarkup(keyboard)
