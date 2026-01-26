@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     telegram_channel_id: str
     telegram_admin_id: int
 
+    # Client Bot
+    telegram_client_bot_token: str | None = None
+
+    # Rate limits
+    audit_daily_limit: int = 2
+    messages_per_minute_limit: int = 20
+
     # Telegram API для парсинга
     telegram_api_id: int | None = None
     telegram_api_hash: str | None = None
