@@ -11,7 +11,7 @@ from telegram.ext import (
 
 from app.client_bot.texts.messages import (
     FAQ_MENU, FAQ_COST, FAQ_TIMELINE, FAQ_MARKETPLACES,
-    FAQ_TECHNICAL, FAQ_FREE_TRIAL, FAQ_CUSTOM_QUESTION, WELCOME_MESSAGE
+    FAQ_TECHNICAL, FAQ_WHAT_CAN, FAQ_CUSTOM_QUESTION, WELCOME_MESSAGE
 )
 from app.client_bot.keyboards.menus import (
     get_faq_menu_keyboard, get_faq_answer_keyboard, get_main_menu_keyboard
@@ -42,11 +42,11 @@ async def faq_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     answers = {
+        "faq_what_can": FAQ_WHAT_CAN,
         "faq_cost": FAQ_COST,
         "faq_timeline": FAQ_TIMELINE,
         "faq_marketplaces": FAQ_MARKETPLACES,
         "faq_technical": FAQ_TECHNICAL,
-        "faq_trial": FAQ_FREE_TRIAL,
     }
 
     answer = answers.get(query.data, "Извините, ответ не найден.")
@@ -122,7 +122,7 @@ def get_faq_handler() -> ConversationHandler:
         },
         fallbacks=[
             CallbackQueryHandler(faq_cancel, pattern="^menu$"),
-            CallbackQueryHandler(faq_answer_handler, pattern="^faq_(cost|timeline|marketplaces|technical|trial)$"),
+            CallbackQueryHandler(faq_answer_handler, pattern="^faq_(what_can|cost|timeline|marketplaces|technical)$"),
             CallbackQueryHandler(faq_custom_start, pattern="^faq_custom$"),
         ],
         per_message=False,
@@ -132,5 +132,5 @@ def get_faq_handler() -> ConversationHandler:
 def get_faq_direct_handlers() -> list:
     """Дополнительные обработчики для прямых callback"""
     return [
-        CallbackQueryHandler(faq_answer_handler, pattern="^faq_(cost|timeline|marketplaces|technical|trial)$"),
+        CallbackQueryHandler(faq_answer_handler, pattern="^faq_(what_can|cost|timeline|marketplaces|technical)$"),
     ]

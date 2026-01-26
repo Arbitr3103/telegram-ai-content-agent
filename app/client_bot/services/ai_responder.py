@@ -10,17 +10,20 @@ from anthropic import Anthropic
 from app.config import settings
 from app.client_bot.texts.messages import (
     FAQ_COST, FAQ_TIMELINE, FAQ_MARKETPLACES,
-    FAQ_TECHNICAL, FAQ_FREE_TRIAL, FAQ_OFF_TOPIC
+    FAQ_TECHNICAL, FAQ_WHAT_CAN, FAQ_OFF_TOPIC
 )
 
 logger = logging.getLogger(__name__)
 
 # База знаний для AI
 FAQ_KNOWLEDGE_BASE = f"""
-Ты — помощник сервиса "Умная аналитика для маркетплейсов".
-Владимир — специалист по аналитике и автоматизации для Ozon, Wildberries, Яндекс.Маркет.
+Ты — помощник сервиса по автоматизации работы с маркетплейсами.
+Владимир — специалист по интеграциям с API и автоматизации для Ozon, Wildberries, Яндекс.Маркет.
 
 ИНФОРМАЦИЯ ОБ УСЛУГАХ:
+
+Что можно автоматизировать:
+{FAQ_WHAT_CAN}
 
 Стоимость:
 {FAQ_COST}
@@ -34,13 +37,10 @@ FAQ_KNOWLEDGE_BASE = f"""
 Техническая реализация:
 {FAQ_TECHNICAL}
 
-Бесплатный тест:
-{FAQ_FREE_TRIAL}
-
 ПРАВИЛА ОТВЕТОВ:
 - Отвечай кратко и по делу (2-4 предложения)
 - Используй "вы" (формальный стиль)
-- Если вопрос не про маркетплейсы/аналитику — вежливо откажись
+- Если вопрос не про маркетплейсы/автоматизацию — вежливо откажись
 - Не придумывай информацию, которой нет в базе знаний
 - В конце можешь предложить оставить заявку для детального обсуждения
 """

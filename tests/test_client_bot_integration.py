@@ -32,23 +32,20 @@ class TestStartHandler:
 class TestCalculator:
     """Тесты калькулятора"""
 
-    def test_calculate_losses(self):
-        """Проверяет расчёт упущенной выгоды"""
-        from app.client_bot.handlers.calculator import calculate_losses
+    def test_calculate_savings(self):
+        """Проверяет расчёт экономии времени"""
+        from app.client_bot.handlers.calculator import calculate_savings
 
         data = {
             "hours": 10,
             "rate": 1000,
-            "errors": "big",
-            "competitor": "rarely",
         }
 
-        result = calculate_losses(data)
+        result = calculate_savings(data)
 
-        assert result["manual_work_cost"] == 40000
-        assert result["errors_cost"] == 25000
-        assert result["competitor_cost"] == 30000
-        assert result["total_loss"] == 95000
+        # 10 часов × 1000 ₽ × 4 недели = 40000 ₽/мес
+        assert result["total_savings"] == 40000
+        assert "message" in result
 
 
 class TestOzonParser:

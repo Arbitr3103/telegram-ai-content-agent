@@ -8,7 +8,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Главное меню"""
     keyboard = [
-        [InlineKeyboardButton("💸 Калькулятор упущенной выгоды", callback_data="calculator")],
+        [InlineKeyboardButton("⏱ Калькулятор экономии", callback_data="calculator")],
         [InlineKeyboardButton("❓ Частые вопросы", callback_data="faq")],
         [InlineKeyboardButton("📝 Оставить заявку", callback_data="application")],
         [InlineKeyboardButton("👤 Связаться с человеком", callback_data="contact")],
@@ -68,32 +68,10 @@ def get_calc_rate_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_calc_errors_keyboard() -> InlineKeyboardMarkup:
-    """Выбор ошибок в ценах"""
-    keyboard = [
-        [InlineKeyboardButton("Да, теряли деньги", callback_data="calc_errors_big")],
-        [InlineKeyboardButton("Да, мелкие", callback_data="calc_errors_small")],
-        [InlineKeyboardButton("Нет", callback_data="calc_errors_no")],
-        [InlineKeyboardButton("🏠 В меню", callback_data="menu")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_calc_competitor_keyboard() -> InlineKeyboardMarkup:
-    """Выбор частоты проверки конкурентов"""
-    keyboard = [
-        [InlineKeyboardButton("Каждый день", callback_data="calc_comp_daily")],
-        [InlineKeyboardButton("Раз в неделю", callback_data="calc_comp_weekly")],
-        [InlineKeyboardButton("Редко/никогда", callback_data="calc_comp_rarely")],
-        [InlineKeyboardButton("🏠 В меню", callback_data="menu")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
 def get_calc_result_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура после калькулятора"""
     keyboard = [
-        [InlineKeyboardButton("📝 Обсудить автоматизацию", callback_data="application")],
+        [InlineKeyboardButton("📝 Оставить заявку", callback_data="application")],
         [InlineKeyboardButton("🔄 Пересчитать", callback_data="calculator")],
         [InlineKeyboardButton("🏠 В меню", callback_data="menu")],
     ]
@@ -104,11 +82,11 @@ def get_calc_result_keyboard() -> InlineKeyboardMarkup:
 def get_faq_menu_keyboard() -> InlineKeyboardMarkup:
     """Меню FAQ"""
     keyboard = [
+        [InlineKeyboardButton("📋 Что можно автоматизировать?", callback_data="faq_what_can")],
         [InlineKeyboardButton("💰 Сколько стоят услуги?", callback_data="faq_cost")],
-        [InlineKeyboardButton("⏱ Сколько времени займёт внедрение?", callback_data="faq_timeline")],
-        [InlineKeyboardButton("🛒 С какими маркетплейсами работаете?", callback_data="faq_marketplaces")],
-        [InlineKeyboardButton("⚙️ Как это технически работает?", callback_data="faq_technical")],
-        [InlineKeyboardButton("🎁 Можно попробовать бесплатно?", callback_data="faq_trial")],
+        [InlineKeyboardButton("⏱ Сколько времени займёт?", callback_data="faq_timeline")],
+        [InlineKeyboardButton("🛒 С какими маркетплейсами?", callback_data="faq_marketplaces")],
+        [InlineKeyboardButton("⚙️ Как это работает?", callback_data="faq_technical")],
         [InlineKeyboardButton("✍️ Задать свой вопрос", callback_data="faq_custom")],
         [InlineKeyboardButton("🏠 В меню", callback_data="menu")],
     ]
@@ -206,7 +184,7 @@ def get_contact_method_keyboard() -> InlineKeyboardMarkup:
 def get_contact_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура после запроса на связь"""
     keyboard = [
-        [InlineKeyboardButton("💸 Рассчитать упущенную выгоду", callback_data="calculator")],
+        [InlineKeyboardButton("⏱ Калькулятор экономии", callback_data="calculator")],
         [InlineKeyboardButton("❓ Частые вопросы", callback_data="faq")],
         [InlineKeyboardButton("🏠 Вернуться в меню", callback_data="menu")],
     ]
