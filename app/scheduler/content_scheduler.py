@@ -49,21 +49,33 @@ class ContentScheduler:
 
         # Генерируем случайное время между 09:00 и 12:00
         hour, minute = get_random_publish_time()
-
-        # Планируем публикацию
         run_time = today.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # Если время уже прошло, не планируем
-        if run_time < datetime.now():
-            logger.warning(f"Scheduled time {run_time} already passed")
-            return
+        # Если время уже прошло, планируем на ближайшее доступное время
+        now = datetime.now()
+        if run_time < now:
+            # Проверяем, что ещё есть время до 12:00
+            deadline = today.replace(hour=12, minute=0, second=0, microsecond=0)
+            if now >= deadline:
+                logger.warning(f"Today's publication window (09:00-12:00) has passed")
+                return
+
+            # Планируем через 10-30 минут от текущего времени
+            delay_minutes = random.randint(10, 30)
+            run_time = now + timedelta(minutes=delay_minutes)
+
+            # Если новое время превышает 12:00, планируем на 11:55
+            if run_time > deadline:
+                run_time = deadline - timedelta(minutes=5)
+
+            logger.info(f"Original time passed, rescheduled to {run_time.strftime('%H:%M')}")
 
         self.scheduler.add_job(
             self._run_pipeline,
             'date',
             run_date=run_time,
             id=f'post_{today.strftime("%Y%m%d")}',
-            name=f'Publish post at {hour:02d}:{minute:02d}',
+            name=f'Publish post at {run_time.strftime("%H:%M")}',
             replace_existing=True
         )
 
