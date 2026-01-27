@@ -33,7 +33,7 @@ class ContentGenerator:
         proxy_url = settings.proxy_url
         if proxy_url:
             logger.info(f"Using proxy: {proxy_url.split('@')[-1]}")
-            http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
+            http_client = httpx.Client(proxies=proxy_url, timeout=60.0)
         else:
             http_client = httpx.Client(timeout=60.0)
 
