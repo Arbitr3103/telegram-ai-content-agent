@@ -143,6 +143,15 @@ class ContentScheduler:
 
 async def run_scheduler():
     """Запуск планировщика как основного процесса"""
+    # Настройка логирования
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler()  # Вывод в stdout для systemd
+        ]
+    )
+
     scheduler = ContentScheduler()
     scheduler.start()
 

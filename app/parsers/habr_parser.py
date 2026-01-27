@@ -2,7 +2,7 @@
 Habr парсер для получения технических статей
 """
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 import logging
 
@@ -45,7 +45,7 @@ class HabrParser:
             Список найденных статей
         """
         all_articles = []
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
 
         for tag in tags:
             logger.info(f"Parsing Habr tag: {tag}")
@@ -168,7 +168,7 @@ class HabrParser:
             'title': title,
             'content': content[:1000],  # Ограничиваем размер
             'url': url,
-            'published_at': published_at or datetime.utcnow(),
+            'published_at': published_at or datetime.now(timezone.utc),
             'source_type': 'habr',
             'relevance_score': None,  # Будет вычислена AI агентом
             'metadata': {
