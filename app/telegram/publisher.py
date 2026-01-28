@@ -59,7 +59,7 @@ class TelegramPublisher:
             message = await self.bot.send_message(
                 chat_id=self.channel_id,
                 text=message_text,
-                parse_mode=ParseMode.MARKDOWN,
+                parse_mode=ParseMode.HTML,
                 disable_web_page_preview=disable_web_preview
             )
 
@@ -123,7 +123,7 @@ class TelegramPublisher:
                 chat_id=self.channel_id,
                 message_id=message_id,
                 text=message_text,
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.HTML
             )
 
             logger.info(f"Post {message_id} edited successfully")
