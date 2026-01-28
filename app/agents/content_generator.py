@@ -10,7 +10,7 @@ import httpx
 from anthropic import Anthropic
 
 from app.config import settings
-from app.utils.prompts import CONTENT_GENERATION_PROMPT, RELEVANCE_EVALUATION_PROMPT
+from app.utils.prompts import CONTENT_GENERATION_PROMPT, RELEVANCE_EVALUATION_PROMPT, AUTHOR_EXPERIENCE_EXAMPLES
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class ContentGenerator:
         proxy_url = settings.proxy_url
         if proxy_url:
             logger.info(f"Using proxy: {proxy_url.split('@')[-1]}")
-            http_client = httpx.Client(proxies=proxy_url, timeout=60.0)
+            http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
         else:
             http_client = httpx.Client(timeout=60.0)
 
@@ -49,7 +49,8 @@ class ContentGenerator:
         sources: List[Dict[str, Any]],
         post_type_instruction: str = "",
         add_cta: bool = False,
-        cta_text: str = ""
+        cta_text: str = "",
+        add_personal_experience: bool = False
     ) -> Dict[str, Any]:
         """
         Генерация поста на основе источников
@@ -59,6 +60,7 @@ class ContentGenerator:
             post_type_instruction: Инструкция для типа поста
             add_cta: Нужно ли добавлять CTA-блок
             cta_text: Текст CTA-блока
+            add_personal_experience: Нужно ли добавлять личный опыт
 
         Returns:
             Словарь с контентом поста
@@ -68,23 +70,35 @@ class ContentGenerator:
         # Подготовка текста источников
         sources_text = self._prepare_sources_text(sources)
 
+        # Личный опыт - условная инструкция и примеры
+        if add_personal_experience:
+            personal_experience_instruction = """Твой личный комментарий или опыт разработки (1-2 предложения) — используй примеры из AUTHOR_EXPERIENCE_EXAMPLES"""
+            author_experience_examples = AUTHOR_EXPERIENCE_EXAMPLES
+        else:
+            personal_experience_instruction = """Твоё экспертное мнение как разработчика (без конкретных кейсов клиентов)"""
+            author_experience_examples = ""  # НЕ показываем примеры
+
         # CTA-инструкция для промпта
         if add_cta and cta_text:
             cta_instruction = f"""
-7. CTA-БЛОК (после хештегов):
-   Добавь пустую строку, затем разделитель и CTA-блок:
+ОБЯЗАТЕЛЬНО ДОБАВЬ CTA-БЛОК В КОНЦЕ ПОСТА:
+После основного текста добавь пустую строку, затем разделитель и CTA:
 
-   ━━━━━━━━━━
-   {cta_text}
+━━━━━━━━━━
+{cta_text}
+
+ВАЖНО: CTA-блок ОБЯЗАТЕЛЕН! Не пропускай его!
 """
         else:
-            cta_instruction = ""
+            cta_instruction = "БЕЗ CTA-БЛОКА в конце поста."
 
         # Формируем промпт
         prompt = CONTENT_GENERATION_PROMPT.format(
             sources=sources_text,
             post_type_instruction=post_type_instruction,
-            cta_instruction=cta_instruction
+            cta_instruction=cta_instruction,
+            personal_experience_instruction=personal_experience_instruction,
+            author_experience_examples=author_experience_examples
         )
 
         try:
@@ -104,12 +118,8 @@ class ContentGenerator:
             # Очистка поста от служебных меток
             cleaned_text = self._clean_post(raw_text)
 
-            # Извлечение тегов
-            tags = self._extract_tags(cleaned_text)
-
             return {
                 'content': cleaned_text,
-                'tags': tags,
                 'sources': [{'name': s.get('title', ''), 'url': s.get('url', '')} for s in sources[:3]],
                 'metadata': {
                     'raw_output': raw_text,
@@ -154,16 +164,19 @@ class ContentGenerator:
             flags=re.MULTILINE | re.IGNORECASE
         )
 
+        # Убираем вступительные фразы Claude (в начале текста)
+        text = re.sub(
+            r"^(Вот что я написал|Вот пост|Готово|Конечно|Хорошо).{0,100}?:\s*\n+",
+            "",
+            text,
+            flags=re.IGNORECASE
+        )
+
         # Очистка пустых строк
         text = text.strip()
         text = re.sub(r"\n{3,}", "\n\n", text)
 
         return text
-
-    def _extract_tags(self, text: str) -> List[str]:
-        """Извлечение хештегов из текста"""
-        tags = re.findall(r'#(\w+)', text)
-        return tags
 
     async def evaluate_relevance(
         self,
@@ -268,6 +281,5 @@ if __name__ == "__main__":
 
         print("GENERATED POST:")
         print(post['content'])
-        print("\nTAGS:", ' '.join(['#' + t for t in post['tags']]))
 
     asyncio.run(main())

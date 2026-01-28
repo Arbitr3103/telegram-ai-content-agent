@@ -135,15 +135,15 @@ class ContentPipeline:
                 sources,
                 post_type_instruction=post_type_config['prompt_addition'],
                 add_cta=post_type_config.get('add_cta', False),
-                cta_text=post_type_config.get('cta', '')
+                cta_text=post_type_config.get('cta', ''),
+                add_personal_experience=post_type_config.get('add_personal_experience', False)
             )
             logger.info("Post generated successfully")
 
             if publish:
                 # Публикация в Telegram
                 result = await self.telegram_publisher.publish_post(
-                    content=post_data['content'],
-                    tags=post_data['tags']
+                    content=post_data['content']
                 )
 
                 if result['success']:
@@ -209,7 +209,6 @@ class ContentPipeline:
             print("GENERATED POST:")
             print("=" * 50)
             print(result['post']['content'])
-            print("\nTAGS:", ' '.join(result['post']['tags']))
 
             if result.get('published', True):
                 print(f"\n✅ Published to Telegram! Message ID: {result['telegram']['message_id']}")

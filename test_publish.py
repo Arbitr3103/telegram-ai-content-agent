@@ -11,6 +11,7 @@ from app.config import settings
 from app.parsers.exa_searcher import ExaSearcher
 from app.agents.content_generator import ContentGenerator
 from app.telegram.publisher import TelegramPublisher
+from app.utils.post_types import get_next_post_type
 
 
 async def main():
@@ -42,10 +43,22 @@ async def main():
 
     print(f"✅ Источников: {len(sources)}")
 
-    # 2. Генерируем пост
+    # 2. Определяем тип поста (с ротацией)
+    post_type_key, post_type_config = get_next_post_type()
+    print(f"📋 Тип поста: {post_type_config['name']}")
+    print(f"   CTA: {'Да' if post_type_config.get('add_cta') else 'Нет'}")
+    print(f"   Личный опыт: {'Да' if post_type_config.get('add_personal_experience') else 'Нет'}")
+
+    # 3. Генерируем пост с учетом типа, CTA и личного опыта
     print("\n✍️ Генерация поста через Claude...")
     generator = ContentGenerator()
-    post = await generator.generate_post(sources)
+    post = await generator.generate_post(
+        sources,
+        post_type_instruction=post_type_config['prompt_addition'],
+        add_cta=post_type_config.get('add_cta', False),
+        cta_text=post_type_config.get('cta', ''),
+        add_personal_experience=post_type_config.get('add_personal_experience', False)
+    )
 
     print("\n" + "="*50)
     print("📝 ПОСТ ДЛЯ ПУБЛИКАЦИИ:")
@@ -57,10 +70,7 @@ async def main():
     print(f"\n📤 Публикация в канал {settings.telegram_channel_id}...")
 
     publisher = TelegramPublisher()
-    result = await publisher.publish_post(
-        content=post['content'],
-        tags=post['tags']
-    )
+    result = await publisher.publish_post(content=post['content'])
 
     if result['success']:
         print(f"\n✅ ОПУБЛИКОВАНО!")
