@@ -37,7 +37,6 @@ class TelegramPublisher:
     async def publish_post(
         self,
         content: str,
-        tags: list = None,
         disable_web_preview: bool = True
     ) -> Dict[str, Any]:
         """
@@ -45,14 +44,13 @@ class TelegramPublisher:
 
         Args:
             content: Текст поста
-            tags: Список хештегов
             disable_web_preview: Отключить preview ссылок
 
         Returns:
             Информация об отправленном сообщении
         """
         # Форматирование текста
-        message_text = self._format_message(content, tags)
+        message_text = self._format_message(content)
 
         try:
             # Отправка сообщения
@@ -79,31 +77,22 @@ class TelegramPublisher:
                 'error': str(e)
             }
 
-    def _format_message(self, content: str, tags: list = None) -> str:
+    def _format_message(self, content: str) -> str:
         """
         Форматирование сообщения для Telegram
 
         Args:
             content: Контент поста
-            tags: Список хештегов
 
         Returns:
             Отформатированный текст
         """
-        message_parts = [content]
-
-        # Добавление тегов
-        if tags:
-            tags_str = ' '.join(tags)
-            message_parts.append(f"\n\n{tags_str}")
-
-        return ''.join(message_parts)
+        return content.strip()
 
     async def edit_post(
         self,
         message_id: int,
-        new_content: str,
-        tags: list = None
+        new_content: str
     ) -> Dict[str, Any]:
         """
         Редактирование опубликованного поста
@@ -111,12 +100,11 @@ class TelegramPublisher:
         Args:
             message_id: ID сообщения для редактирования
             new_content: Новый контент
-            tags: Новые теги
 
         Returns:
             Результат редактирования
         """
-        message_text = self._format_message(new_content, tags)
+        message_text = self._format_message(new_content)
 
         try:
             await self.bot.edit_message_text(
@@ -174,7 +162,6 @@ class TelegramPublisher:
 
 async def publish_to_telegram(
     content: str,
-    tags: list = None,
     bot_token: Optional[str] = None,
     channel_id: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -183,7 +170,6 @@ async def publish_to_telegram(
 
     Args:
         content: Текст поста
-        tags: Хештеги
         bot_token: Telegram Bot Token (опционально)
         channel_id: ID канала (опционально)
 
@@ -191,7 +177,7 @@ async def publish_to_telegram(
         Результат публикации
     """
     publisher = TelegramPublisher(bot_token=bot_token, channel_id=channel_id)
-    return await publisher.publish_post(content, tags)
+    return await publisher.publish_post(content)
 
 
 if __name__ == "__main__":
@@ -213,10 +199,7 @@ if __name__ == "__main__":
         print(f"Channel info: {info}")
 
         # Опубликовать пост
-        result = await publisher.publish_post(
-            content=test_content,
-            tags=['#test', '#ai_agent']
-        )
+        result = await publisher.publish_post(content=test_content)
         print(f"Publish result: {result}")
 
     asyncio.run(main())
