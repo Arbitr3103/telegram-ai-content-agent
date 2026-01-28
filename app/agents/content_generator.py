@@ -44,12 +44,21 @@ class ContentGenerator:
 
         logger.info(f"ContentGenerator initialized with model: {self.model}")
 
-    async def generate_post(self, sources: List[Dict[str, Any]], post_type_instruction: str = "") -> Dict[str, Any]:
+    async def generate_post(
+        self,
+        sources: List[Dict[str, Any]],
+        post_type_instruction: str = "",
+        add_cta: bool = False,
+        cta_text: str = ""
+    ) -> Dict[str, Any]:
         """
         Генерация поста на основе источников
 
         Args:
             sources: Список источников информации
+            post_type_instruction: Инструкция для типа поста
+            add_cta: Нужно ли добавлять CTA-блок
+            cta_text: Текст CTA-блока
 
         Returns:
             Словарь с контентом поста
@@ -59,10 +68,23 @@ class ContentGenerator:
         # Подготовка текста источников
         sources_text = self._prepare_sources_text(sources)
 
+        # CTA-инструкция для промпта
+        if add_cta and cta_text:
+            cta_instruction = f"""
+7. CTA-БЛОК (после хештегов):
+   Добавь пустую строку, затем разделитель и CTA-блок:
+
+   ━━━━━━━━━━
+   {cta_text}
+"""
+        else:
+            cta_instruction = ""
+
         # Формируем промпт
         prompt = CONTENT_GENERATION_PROMPT.format(
             sources=sources_text,
-            post_type_instruction=post_type_instruction
+            post_type_instruction=post_type_instruction,
+            cta_instruction=cta_instruction
         )
 
         try:

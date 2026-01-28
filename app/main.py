@@ -133,7 +133,9 @@ class ContentPipeline:
         try:
             post_data = await self.content_generator.generate_post(
                 sources,
-                post_type_instruction=post_type_config['prompt_addition']
+                post_type_instruction=post_type_config['prompt_addition'],
+                add_cta=post_type_config.get('add_cta', False),
+                cta_text=post_type_config.get('cta', '')
             )
             logger.info("Post generated successfully")
 
