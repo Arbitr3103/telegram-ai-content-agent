@@ -38,7 +38,7 @@ class TelegramPublisher:
         self,
         content: str,
         tags: list = None,
-        disable_web_preview: bool = False
+        disable_web_preview: bool = True
     ) -> Dict[str, Any]:
         """
         Публикация поста в Telegram канал
