@@ -34,14 +34,16 @@ class TelegramPublisher:
         message = await self.bot.send_message(
             chat_id=self.channel_id,
             text=content,
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=False
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True
         )
         return {
             'success': True,
             'message_id': message.message_id
         }
 ```
+
+**Важно:** Используем HTML вместо Markdown — более надёжная обработка URL в CTA-блоках.
 
 ## Форматирование
 
