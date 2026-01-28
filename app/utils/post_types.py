@@ -124,10 +124,13 @@ def should_add_cta() -> bool:
         True если нужно добавить CTA
     """
     state = get_state()
+    # Считаем общее количество опубликованных постов
     total_posts = len(state.get("history", []))
 
     # Добавляем CTA во все посты КРОМЕ каждого третьего
-    return (total_posts + 1) % 3 != 0
+    # total_posts + 1 потому что мы планируем СЛЕДУЮЩИЙ пост
+    position = (total_posts % 3) + 1
+    return position != 3
 
 
 def get_next_post_type() -> Tuple[str, dict]:
