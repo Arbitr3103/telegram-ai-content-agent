@@ -126,3 +126,70 @@ def update_post_stats(
     db.commit()
     db.refresh(stats)
     return stats
+
+
+# === Approval Workflow CRUD ===
+
+def get_pending_approval_posts(db: Session) -> List[Post]:
+    """Get posts waiting for admin approval."""
+    posts = db.query(Post).filter(
+        Post.status == 'draft'
+    ).order_by(Post.created_at).all()
+    # Filter by approval_status in metadata
+    return [p for p in posts if p.metadata and p.metadata.get('approval_status') == 'pending']
+
+
+def approve_post(db: Session, post_id: int) -> Optional[Post]:
+    """Approve a post for publishing."""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        return None
+
+    if post.metadata is None:
+        post.metadata = {}
+    post.metadata['approval_status'] = 'approved'
+    db.commit()
+    db.refresh(post)
+    return post
+
+
+def reject_post(db: Session, post_id: int, reason: str) -> Optional[Post]:
+    """Reject a post with reason."""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        return None
+
+    if post.metadata is None:
+        post.metadata = {}
+    post.metadata['approval_status'] = 'rejected'
+    post.metadata['rejection_reason'] = reason
+    db.commit()
+    db.refresh(post)
+    return post
+
+
+def create_post_for_approval(
+    db: Session,
+    content: str,
+    tags: List[str],
+    sources: List[Dict[str, str]],
+    post_type: str,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Post:
+    """Create a new post in pending approval status."""
+    if metadata is None:
+        metadata = {}
+    metadata['approval_status'] = 'pending'
+    metadata['post_type'] = post_type
+
+    post = Post(
+        content=content,
+        tags=tags,
+        sources=sources,
+        metadata=metadata,
+        status='draft'
+    )
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    return post
