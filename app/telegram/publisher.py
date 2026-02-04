@@ -2,7 +2,7 @@
 Telegram Publisher для публикации постов в канал
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from telegram import Bot
 from telegram.constants import ParseMode
@@ -142,6 +142,59 @@ class TelegramPublisher:
         except TelegramError as e:
             logger.error(f"Error deleting post {message_id}: {e}")
             return False
+
+    async def send_poll(
+        self,
+        question: str,
+        options: List[str],
+        is_anonymous: bool = True,
+        allows_multiple_answers: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Send a poll to the Telegram channel.
+
+        Args:
+            question: Poll question (max 300 chars)
+            options: List of answer options (2-10 items, each max 100 chars)
+            is_anonymous: Whether the poll is anonymous
+            allows_multiple_answers: Whether multiple answers are allowed
+
+        Returns:
+            Dict with success status, message_id, and poll_id
+        """
+        # Validation
+        if len(options) < 2:
+            return {'success': False, 'error': 'Poll must have at least 2 options'}
+        if len(options) > 10:
+            return {'success': False, 'error': 'Poll must have at most 10 options'}
+        if len(question) > 300:
+            return {'success': False, 'error': f'Question too long: {len(question)}/300 chars'}
+
+        for i, opt in enumerate(options):
+            if len(opt) > 100:
+                return {'success': False, 'error': f'Option {i+1} too long: {len(opt)}/100 chars'}
+
+        try:
+            message = await self.bot.send_poll(
+                chat_id=self.channel_id,
+                question=question,
+                options=options,
+                is_anonymous=is_anonymous,
+                allows_multiple_answers=allows_multiple_answers
+            )
+
+            logger.info(f"Poll published. Message ID: {message.message_id}, Poll ID: {message.poll.id}")
+
+            return {
+                'success': True,
+                'message_id': message.message_id,
+                'poll_id': message.poll.id,
+                'chat_id': message.chat.id
+            }
+
+        except TelegramError as e:
+            logger.error(f"Error sending poll: {e}")
+            return {'success': False, 'error': str(e)}
 
     async def get_chat_info(self) -> Dict[str, Any]:
         """Получить информацию о канале"""
