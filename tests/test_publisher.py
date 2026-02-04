@@ -126,3 +126,30 @@ class TestSendPoll:
         assert result['success'] is False
         assert 'error' in result
         assert 'Network error' in result['error']
+
+
+class TestPublishPostWithPoll:
+    @pytest.mark.asyncio
+    async def test_publish_post_then_poll(self, publisher, mock_bot):
+        """Test publishing post followed by poll"""
+        mock_message = MagicMock()
+        mock_message.message_id = 100
+        mock_message.chat.id = -1001234567890
+        mock_message.date = MagicMock()
+        mock_bot.send_message.return_value = mock_message
+
+        mock_poll_message = MagicMock()
+        mock_poll_message.message_id = 101
+        mock_poll_message.poll.id = "poll_456"
+        mock_poll_message.chat.id = -1001234567890
+        mock_bot.send_poll.return_value = mock_poll_message
+
+        result = await publisher.publish_post_with_poll(
+            content="Check out this post!",
+            poll_question="What do you think?",
+            poll_options=["Great", "Good", "Meh"]
+        )
+
+        assert result['success'] is True
+        assert result['post_message_id'] == 100
+        assert result['poll_message_id'] == 101

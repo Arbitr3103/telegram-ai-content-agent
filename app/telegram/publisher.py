@@ -196,6 +196,46 @@ class TelegramPublisher:
             logger.error(f"Error sending poll: {e}")
             return {'success': False, 'error': str(e)}
 
+    async def publish_post_with_poll(
+        self,
+        content: str,
+        poll_question: str,
+        poll_options: List[str],
+        disable_web_preview: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Publish a post followed by a poll.
+
+        Args:
+            content: Post text content
+            poll_question: Poll question
+            poll_options: Poll answer options
+            disable_web_preview: Whether to disable link previews
+
+        Returns:
+            Dict with post and poll message IDs
+        """
+        # First publish the post
+        post_result = await self.publish_post(content, disable_web_preview)
+        if not post_result['success']:
+            return post_result
+
+        # Then send the poll
+        poll_result = await self.send_poll(poll_question, poll_options)
+        if not poll_result['success']:
+            return {
+                'success': False,
+                'error': f"Post published but poll failed: {poll_result['error']}",
+                'post_message_id': post_result['message_id']
+            }
+
+        return {
+            'success': True,
+            'post_message_id': post_result['message_id'],
+            'poll_message_id': poll_result['message_id'],
+            'poll_id': poll_result['poll_id']
+        }
+
     async def get_chat_info(self) -> Dict[str, Any]:
         """Получить информацию о канале"""
         try:

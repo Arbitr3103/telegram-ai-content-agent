@@ -10,7 +10,8 @@ from app.parsers.exa_searcher import ExaSearcher
 from app.parsers.habr_parser import HabrParser
 from app.agents.content_generator import ContentGenerator
 from app.telegram.publisher import TelegramPublisher
-from app.utils.post_types import get_next_post_type, mark_post_published, get_rotation_status, can_publish
+from app.utils.post_types import get_next_post_type, get_post_type_from_plan, mark_post_published, get_rotation_status, can_publish
+from app.utils.content_plan import get_content_plan, get_todays_post, PlannedPost
 
 # Настройка логирования
 logging.basicConfig(
@@ -36,9 +37,17 @@ class ContentPipeline:
 
         logger.info("ContentPipeline initialized")
 
-    async def collect_sources(self) -> List[Dict[str, Any]]:
+    async def collect_sources(
+        self,
+        keywords: List[str] = None,
+        topic: str = None
+    ) -> List[Dict[str, Any]]:
         """
         Сбор источников информации
+
+        Args:
+            keywords: Ключевые слова из контент-плана (опционально)
+            topic: Тема поста из контент-плана (опционально)
 
         Returns:
             Список собранных источников
@@ -47,29 +56,36 @@ class ContentPipeline:
 
         all_sources = []
 
-        # Поисковые запросы для Exa (фокус на русские маркетплейсы)
-        exa_queries = [
-            # Общие новости маркетплейсов
-            "Ozon селлер новости обновления 2025",
-            "Wildberries продавцы изменения комиссии",
-            "Яндекс Маркет продавцы новости",
+        # Если есть keywords из контент-плана - используем их для поиска
+        if keywords:
+            exa_queries = [
+                f"{' '.join(keywords[:3])} маркетплейс селлер",
+                f"{topic}" if topic else f"{keywords[0]} Ozon Wildberries"
+            ]
+            habr_tags = keywords[:3] + ['e-commerce']
+            logger.info(f"Using content plan keywords: {keywords}")
+        else:
+            # Стандартные запросы
+            exa_queries = [
+                # Общие новости маркетплейсов
+                "Ozon селлер новости обновления 2026",
+                "Wildberries продавцы изменения комиссии",
+                "Яндекс Маркет продавцы новости",
 
-            # Официальные API документации (проверка обновлений)
-            "site:docs.ozon.ru API новости обновления seller",
-            "site:openapi.wildberries.ru изменения API",
-            "site:yandex.ru/dev/market API изменения",
+                # Официальные API документации (проверка обновлений)
+                "site:docs.ozon.ru API новости обновления seller",
+                "site:openapi.wildberries.ru изменения API",
+                "site:yandex.ru/dev/market API изменения",
 
-            # Performance API и аналитика
-            "Ozon Performance API реклама обновления",
-            "Wildberries API статистика продвижение",
-            "Яндекс Маркет аналитика API отчёты",
+                # Performance API и аналитика
+                "Ozon Performance API реклама обновления",
+                "Wildberries API статистика продвижение",
+                "Яндекс Маркет аналитика API отчёты",
 
-            # Кейсы и практика
-            "автоматизация Ozon Wildberries кейс результаты"
-        ]
-
-        # Теги для Habr
-        habr_tags = ['etl', 'ozon', 'wildberries', 'e-commerce', 'маркетплейсы']
+                # Кейсы и практика
+                "автоматизация Ozon Wildberries кейс результаты"
+            ]
+            habr_tags = ['etl', 'ozon', 'wildberries', 'e-commerce', 'маркетплейсы']
 
         # Сбор из Exa (общие новости)
         try:
@@ -109,7 +125,8 @@ class ContentPipeline:
     async def generate_and_publish_post(
         self,
         sources: List[Dict[str, Any]],
-        publish: bool = True
+        publish: bool = True,
+        planned_post: PlannedPost = None
     ) -> Dict[str, Any]:
         """
         Генерация и публикация поста
@@ -117,23 +134,39 @@ class ContentPipeline:
         Args:
             sources: Список источников
             publish: Публиковать ли сразу (False - только сгенерировать)
+            planned_post: Пост из контент-плана (опционально)
 
         Returns:
             Информация о созданном посте
         """
-        if not sources:
+        if not sources and not planned_post:
             logger.warning("No sources provided for post generation")
             return {'success': False, 'error': 'No sources'}
 
-        # Определяем тип поста по ротации "3 кита"
-        post_type_key, post_type_config = get_next_post_type()
-        logger.info(f"Post type: {post_type_config['name']}")
+        # Если есть пост из контент-плана - используем его тип
+        if planned_post:
+            post_type_key, post_type_config = get_post_type_from_plan(planned_post.type)
+            logger.info(f"Using content plan: {planned_post.topic}")
+            logger.info(f"Post type from plan: {post_type_config['name']}")
+        else:
+            # Определяем тип поста по ротации "3 кита"
+            post_type_key, post_type_config = get_next_post_type()
+            logger.info(f"Post type: {post_type_config['name']}")
 
-        # Генерация поста с учётом типа
+        # Генерация поста с учётом типа и контент-плана
         try:
+            # Формируем дополнительные инструкции из контент-плана
+            topic_instruction = ""
+            if planned_post:
+                topic_instruction = f"\n\nТЕМА ПОСТА (обязательно раскрой эту тему): {planned_post.topic}"
+                if planned_post.structure:
+                    topic_instruction += f"\n\nСТРУКТУРА ПОСТА:\n{planned_post.structure}"
+                if planned_post.facts:
+                    topic_instruction += f"\n\nИСПОЛЬЗУЙ ЭТИ ФАКТЫ: {', '.join(planned_post.facts)}"
+
             post_data = await self.content_generator.generate_post(
                 sources,
-                post_type_instruction=post_type_config['prompt_addition'],
+                post_type_instruction=post_type_config['prompt_addition'] + topic_instruction,
                 add_cta=post_type_config.get('add_cta', False),
                 cta_text=post_type_config.get('cta', ''),
                 add_personal_experience=post_type_config.get('add_personal_experience', False)
@@ -141,28 +174,53 @@ class ContentPipeline:
             logger.info("Post generated successfully")
 
             if publish:
-                # Публикация в Telegram
-                result = await self.telegram_publisher.publish_post(
-                    content=post_data['content']
-                )
-
-                if result['success']:
-                    logger.info(f"Post published. Message ID: {result['message_id']}")
-                    # Отмечаем тип поста как опубликованный для ротации
-                    mark_post_published(post_type_key)
-                    return {
-                        'success': True,
-                        'post': post_data,
-                        'post_type': post_type_config['name'],
-                        'telegram': result
-                    }
+                # Check if this post should include a poll
+                if planned_post and planned_post.include_poll and planned_post.poll_question:
+                    result = await self.telegram_publisher.publish_post_with_poll(
+                        content=post_data['content'],
+                        poll_question=planned_post.poll_question,
+                        poll_options=planned_post.poll_options or ["Да", "Нет"]
+                    )
+                    if result['success']:
+                        logger.info(f"Post with poll published. Post ID: {result['post_message_id']}, Poll ID: {result['poll_message_id']}")
+                        mark_post_published(post_type_key)
+                        return {
+                            'success': True,
+                            'post': post_data,
+                            'post_type': post_type_config['name'],
+                            'telegram': result,
+                            'has_poll': True
+                        }
+                    else:
+                        logger.error(f"Failed to publish with poll: {result.get('error')}")
+                        return {
+                            'success': False,
+                            'post': post_data,
+                            'error': result.get('error')
+                        }
                 else:
-                    logger.error(f"Failed to publish: {result['error']}")
-                    return {
-                        'success': False,
-                        'post': post_data,
-                        'error': result['error']
-                    }
+                    # Regular post without poll
+                    result = await self.telegram_publisher.publish_post(
+                        content=post_data['content']
+                    )
+
+                    if result['success']:
+                        logger.info(f"Post published. Message ID: {result['message_id']}")
+                        # Отмечаем тип поста как опубликованный для ротации
+                        mark_post_published(post_type_key)
+                        return {
+                            'success': True,
+                            'post': post_data,
+                            'post_type': post_type_config['name'],
+                            'telegram': result
+                        }
+                    else:
+                        logger.error(f"Failed to publish: {result['error']}")
+                        return {
+                            'success': False,
+                            'post': post_data,
+                            'error': result['error']
+                        }
             else:
                 # Только генерация, без публикации
                 return {
@@ -193,15 +251,29 @@ class ContentPipeline:
                 print(f"\n⚠️ {reason}")
                 return
 
-        # Сбор источников
-        sources = await self.collect_sources()
+        # Проверяем контент-план на сегодня
+        planned_post = get_todays_post()
+        if planned_post:
+            logger.info(f"Found planned post for today: {planned_post.topic}")
+            print(f"\n📅 Пост из контент-плана: {planned_post.topic}")
+            print(f"   Тип: {planned_post.type}")
 
-        if not sources:
+        # Сбор источников (с учётом keywords из плана)
+        sources = await self.collect_sources(
+            keywords=planned_post.keywords if planned_post else None,
+            topic=planned_post.topic if planned_post else None
+        )
+
+        if not sources and not planned_post:
             logger.warning("No sources collected, aborting")
             return
 
         # Генерация и публикация
-        result = await self.generate_and_publish_post(sources, publish=publish)
+        result = await self.generate_and_publish_post(
+            sources,
+            publish=publish,
+            planned_post=planned_post
+        )
 
         if result['success']:
             logger.info("Pipeline completed successfully")
