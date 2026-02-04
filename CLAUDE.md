@@ -25,7 +25,7 @@ posts:
     keywords: [ключевые, слова]
 ```
 
-**Типы постов:** useful, case, interactive, checklist, tools, mistake
+**Типы постов:** useful, case, interactive, checklist, tools, mistake, lifehack, expert_opinion
 
 ## Расписание публикаций
 
@@ -62,7 +62,19 @@ systemctl status telegram-content-scheduler  # Статус на сервере
 | Post Types | `app/utils/post_types.py` |
 | Exa Searcher | `app/parsers/exa_searcher.py` |
 | Publisher | `app/telegram/publisher.py` |
+| Admin Bot | `app/telegram/admin_bot.py` |
 | Prompts | `app/utils/prompts.py` |
+
+## Админ-бот
+
+| Команда | Действие |
+|---------|----------|
+| `/preview` | Превью следующего поста |
+| `/approve [id]` | Одобрить пост |
+| `/reject [id] [причина]` | Отклонить пост |
+| `/stats` | Статистика постов |
+
+**Уведомления:** Админы получают уведомления при генерации и публикации постов.
 
 ## Ключевые функции
 
@@ -71,7 +83,7 @@ systemctl status telegram-content-scheduler  # Статус на сервере
 | `should_add_cta()` | Определяет нужен ли CTA (2 из 3 постов) |
 | `should_add_personal_experience()` | Определяет нужен ли личный опыт (1 из 4 постов) |
 | `get_next_post_type()` | Возвращает тип поста + флаги (CTA, личный опыт) |
-| `mark_post_published()` | Сохраняет пост в историю, обновляет индекс |
+| `send_poll()` | Отправить опрос в канал (2-10 вариантов) |
 
 ## Мониторинг API
 
