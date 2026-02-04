@@ -10,7 +10,14 @@ import httpx
 from anthropic import Anthropic
 
 from app.config import settings
-from app.utils.prompts import CONTENT_GENERATION_PROMPT, RELEVANCE_EVALUATION_PROMPT, AUTHOR_EXPERIENCE_EXAMPLES
+from app.utils.prompts import (
+    SYSTEM_PROMPT,
+    CONTENT_GENERATION_PROMPT,
+    RELEVANCE_EVALUATION_PROMPT,
+    AUTHOR_EXPERIENCE_EXAMPLES,
+    REALISTIC_NUMBERS_GUIDE,
+    POST_TYPE_PROMPTS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +83,8 @@ class ContentGenerator:
 
         # Личный опыт - условная инструкция и примеры
         if add_personal_experience:
-            personal_experience_instruction = """Твой личный комментарий или опыт разработки (1-2 предложения) — используй примеры из AUTHOR_EXPERIENCE_EXAMPLES"""
             author_experience_examples = AUTHOR_EXPERIENCE_EXAMPLES
         else:
-            personal_experience_instruction = """Твоё экспертное мнение как разработчика (без конкретных кейсов клиентов)"""
             author_experience_examples = ""  # НЕ показываем примеры
 
         # CTA-инструкция для промпта
@@ -96,13 +101,14 @@ class ContentGenerator:
         else:
             cta_instruction = "БЕЗ CTA-БЛОКА в конце поста."
 
-        # Формируем промпт
+        # Формируем промпт с полной структурой
         prompt = CONTENT_GENERATION_PROMPT.format(
+            system_prompt=SYSTEM_PROMPT,
+            author_experience_examples=author_experience_examples,
+            realistic_numbers_guide=REALISTIC_NUMBERS_GUIDE,
             sources=sources_text,
-            post_type_instruction=post_type_instruction,
-            cta_instruction=cta_instruction,
-            personal_experience_instruction=personal_experience_instruction,
-            author_experience_examples=author_experience_examples
+            post_type_prompt=post_type_instruction,
+            cta_instruction=cta_instruction
         )
 
         try:
