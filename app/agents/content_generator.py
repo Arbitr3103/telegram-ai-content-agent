@@ -33,7 +33,11 @@ class ContentGenerator:
         proxy_url = settings.proxy_url
         if proxy_url:
             logger.info(f"Using proxy: {proxy_url.split('@')[-1]}")
-            http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
+            # httpx 0.28+ использует proxy=, более ранние версии - proxies=
+            try:
+                http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
+            except TypeError:
+                http_client = httpx.Client(proxies=proxy_url, timeout=60.0)
         else:
             http_client = httpx.Client(timeout=60.0)
 
@@ -118,8 +122,15 @@ class ContentGenerator:
             # Очистка поста от служебных меток
             cleaned_text = self._clean_post(raw_text)
 
+            # Извлекаем теги из текста (хештеги)
+            tags = re.findall(r'#(\w+)', cleaned_text)
+            if not tags:
+                # Генерируем теги из ключевых слов если их нет в посте
+                tags = ['маркетплейсы', 'аналитика', 'автоматизация']
+
             return {
                 'content': cleaned_text,
+                'tags': tags,
                 'sources': [{'name': s.get('title', ''), 'url': s.get('url', '')} for s in sources[:3]],
                 'metadata': {
                     'raw_output': raw_text,

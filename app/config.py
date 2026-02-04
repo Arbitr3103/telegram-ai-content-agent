@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     telegram_channel_id: str
     telegram_admin_id: int
 
+    # Admin bot settings
+    telegram_admin_ids: str = ""  # Comma-separated list of admin user IDs
+
     # Client Bot
     telegram_client_bot_token: str | None = None
 
@@ -83,6 +86,14 @@ class Settings(BaseSettings):
     def generation_days(self) -> List[str]:
         """Дни для генерации постов"""
         return [d.strip() for d in self.post_generation_days.split(',')]
+
+    @property
+    def admin_user_ids(self) -> List[int]:
+        """Parse admin IDs from comma-separated string"""
+        if not self.telegram_admin_ids:
+            # Fallback to single admin
+            return [self.telegram_admin_id] if self.telegram_admin_id else []
+        return [int(uid.strip()) for uid in self.telegram_admin_ids.split(',') if uid.strip()]
 
     def ensure_directories(self):
         """Создать необходимые директории"""

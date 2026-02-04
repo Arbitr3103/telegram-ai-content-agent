@@ -2,6 +2,8 @@
 
 Автономная система генерации контента для @smart_analytics_mp (Ozon/Wildberries/Яндекс.Маркет).
 
+**Модель:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+
 ## Критичные правила
 
 - **Proxy обязателен** — Claude API заблокирован в РФ, `settings.proxy_url`
@@ -10,14 +12,29 @@
 - **Async везде** — все I/O через async/await
 - **Позиционирование как разработчик** — не пользователь чужих сервисов
 
+## Контент-план
+
+Посты берутся из `data/content_plan.yaml`. Если на сегодня есть запись — используется тема и тип из плана, иначе fallback на ротацию.
+
+```yaml
+# data/content_plan.yaml
+posts:
+  - date: "2026-02-05"
+    type: case
+    topic: "Тема поста"
+    keywords: [ключевые, слова]
+```
+
+**Типы постов:** useful, case, interactive, checklist, tools, mistake
+
 ## Расписание публикаций
 
-| День | Время | Тип поста |
-|------|-------|-----------|
-| Вторник | 09:00-12:00 (рандом) | По ротации |
-| Четверг | 09:00-12:00 (рандом) | По ротации |
+| День | Время | Источник |
+|------|-------|----------|
+| Вторник | 09:00-12:00 (рандом) | content_plan.yaml или ротация |
+| Четверг | 09:00-12:00 (рандом) | content_plan.yaml или ротация |
 
-**Ротация "3 кита":** Полезная польза → Полезная польза → Кейс → Интерактив
+**Fallback ротация:** Полезная польза → Полезная польза → Кейс → Интерактив
 
 **Ротация личного опыта:** 1 из 4 постов (каждый 4-й: позиции 4, 8, 12, 16...)
 
@@ -40,6 +57,7 @@ systemctl status telegram-content-scheduler  # Статус на сервере
 | Модуль | Путь |
 |--------|------|
 | Content Generator | `app/agents/content_generator.py` |
+| Content Plan | `app/utils/content_plan.py` |
 | Scheduler | `app/scheduler/content_scheduler.py` |
 | Post Types | `app/utils/post_types.py` |
 | Exa Searcher | `app/parsers/exa_searcher.py` |

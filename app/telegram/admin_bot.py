@@ -27,6 +27,27 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+async def notify_admins(
+    message: str,
+    keyboard: Optional[InlineKeyboardMarkup] = None
+) -> None:
+    """Send notification to all admin users."""
+    from telegram import Bot
+    bot = Bot(token=settings.telegram_bot_token)
+
+    for admin_id in settings.admin_user_ids:
+        try:
+            await bot.send_message(
+                chat_id=admin_id,
+                text=message,
+                reply_markup=keyboard,
+                parse_mode='HTML'
+            )
+            logger.info(f"Notification sent to admin {admin_id}")
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
+
+
 def is_admin(user_id: int) -> bool:
     """Check if user is an authorized admin."""
     return user_id in settings.admin_user_ids

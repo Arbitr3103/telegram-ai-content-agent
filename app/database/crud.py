@@ -136,7 +136,7 @@ def get_pending_approval_posts(db: Session) -> List[Post]:
         Post.status == 'draft'
     ).order_by(Post.created_at).all()
     # Filter by approval_status in metadata
-    return [p for p in posts if p.metadata and p.metadata.get('approval_status') == 'pending']
+    return [p for p in posts if p.extra_data and p.extra_data.get('approval_status') == 'pending']
 
 
 def approve_post(db: Session, post_id: int) -> Optional[Post]:
@@ -145,9 +145,9 @@ def approve_post(db: Session, post_id: int) -> Optional[Post]:
     if not post:
         return None
 
-    if post.metadata is None:
-        post.metadata = {}
-    post.metadata['approval_status'] = 'approved'
+    if post.extra_data is None:
+        post.extra_data = {}
+    post.extra_data['approval_status'] = 'approved'
     db.commit()
     db.refresh(post)
     return post
@@ -159,10 +159,10 @@ def reject_post(db: Session, post_id: int, reason: str) -> Optional[Post]:
     if not post:
         return None
 
-    if post.metadata is None:
-        post.metadata = {}
-    post.metadata['approval_status'] = 'rejected'
-    post.metadata['rejection_reason'] = reason
+    if post.extra_data is None:
+        post.extra_data = {}
+    post.extra_data['approval_status'] = 'rejected'
+    post.extra_data['rejection_reason'] = reason
     db.commit()
     db.refresh(post)
     return post

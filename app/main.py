@@ -173,6 +173,19 @@ class ContentPipeline:
             )
             logger.info("Post generated successfully")
 
+            # Notify admins about new post (if not auto-publishing)
+            if not publish:
+                try:
+                    from app.telegram.admin_bot import notify_admins
+                    await notify_admins(
+                        f"<b>New post generated</b>\n\n"
+                        f"Type: {post_type_config['name']}\n"
+                        f"Length: {len(post_data['content'])} chars\n\n"
+                        f"Use /preview in admin bot to review."
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not notify admins: {e}")
+
             if publish:
                 # Check if this post should include a poll
                 if planned_post and planned_post.include_poll and planned_post.poll_question:
@@ -184,6 +197,20 @@ class ContentPipeline:
                     if result['success']:
                         logger.info(f"Post with poll published. Post ID: {result['post_message_id']}, Poll ID: {result['poll_message_id']}")
                         mark_post_published(post_type_key)
+
+                        # Notify admins about published post
+                        try:
+                            from app.telegram.admin_bot import notify_admins
+                            await notify_admins(
+                                f"<b>Post published!</b>\n\n"
+                                f"Type: {post_type_config['name']}\n"
+                                f"Post ID: {result.get('post_message_id')}\n"
+                                f"Poll ID: {result.get('poll_message_id')}\n"
+                                f"Channel: {settings.telegram_channel_id}"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not notify admins: {e}")
+
                         return {
                             'success': True,
                             'post': post_data,
@@ -208,6 +235,19 @@ class ContentPipeline:
                         logger.info(f"Post published. Message ID: {result['message_id']}")
                         # Отмечаем тип поста как опубликованный для ротации
                         mark_post_published(post_type_key)
+
+                        # Notify admins about published post
+                        try:
+                            from app.telegram.admin_bot import notify_admins
+                            await notify_admins(
+                                f"<b>Post published!</b>\n\n"
+                                f"Type: {post_type_config['name']}\n"
+                                f"Message ID: {result.get('message_id')}\n"
+                                f"Channel: {settings.telegram_channel_id}"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not notify admins: {e}")
+
                         return {
                             'success': True,
                             'post': post_data,

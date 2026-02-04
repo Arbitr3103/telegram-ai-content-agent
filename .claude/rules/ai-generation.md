@@ -17,14 +17,18 @@ from anthropic import Anthropic
 
 proxy_url = settings.proxy_url
 if proxy_url:
-    http_client = httpx.Client(proxy=proxy_url, timeout=60.0)
+    http_client = httpx.Client(proxies=proxy_url, timeout=60.0)
 else:
     http_client = httpx.Client(timeout=60.0)
 
 client = Anthropic(api_key=settings.anthropic_api_key, http_client=http_client)
 ```
 
-**Важно:** В httpx 0.28+ используй `proxy=`, не `proxies=`.
+**Версии httpx:**
+- httpx < 0.28: используй `proxies=`
+- httpx 0.28+: используй `proxy=`
+
+На сервере httpx 0.25.2 → используем `proxies=`.
 
 ## Ротация личного опыта
 
