@@ -98,14 +98,17 @@ class ContentPipeline:
         except Exception as e:
             logger.error(f"Error collecting from Exa: {e}")
 
-        # Сбор из официальных API документаций (приоритетный источник)
-        try:
-            api_docs = await self.exa_searcher.search_api_documentation(num_results=2)
-            # Добавляем в начало списка как приоритетные
-            all_sources = api_docs + all_sources
-            logger.info(f"Collected {len(api_docs)} sources from API docs")
-        except Exception as e:
-            logger.error(f"Error collecting API docs: {e}")
+        # Сбор из официальных API документаций (ТОЛЬКО если нет контент-плана!)
+        if not keywords:
+            try:
+                api_docs = await self.exa_searcher.search_api_documentation(num_results=2)
+                # Добавляем в начало списка как приоритетные
+                all_sources = api_docs + all_sources
+                logger.info(f"Collected {len(api_docs)} sources from API docs")
+            except Exception as e:
+                logger.error(f"Error collecting API docs: {e}")
+        else:
+            logger.info("Skipping API docs collection - using content plan keywords")
 
         # Сбор из Habr
         try:
@@ -155,18 +158,45 @@ class ContentPipeline:
 
         # Генерация поста с учётом типа и контент-плана
         try:
-            # Формируем дополнительные инструкции из контент-плана
+            # Формируем ЖЁСТКУЮ инструкцию по теме из контент-плана
             topic_instruction = ""
             if planned_post:
-                topic_instruction = f"\n\nТЕМА ПОСТА (обязательно раскрой эту тему): {planned_post.topic}"
+                topic_instruction = f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ КРИТИЧЕСКИ ВАЖНО — ТЕМА ПОСТА!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ТЕМА: {planned_post.topic}
+
+🚫 ЗАПРЕЩЕНО:
+• Писать про API, если тема НЕ про API
+• Писать про "новые возможности", если тема про конкретный кейс
+• Отклоняться от темы ни на слово
+• Игнорировать структуру ниже
+
+✅ ОБЯЗАТЕЛЬНО:
+• Пост ТОЛЬКО на тему выше
+• Использовать ключевые слова: {', '.join(planned_post.keywords)}
+"""
                 if planned_post.structure:
-                    topic_instruction += f"\n\nСТРУКТУРА ПОСТА:\n{planned_post.structure}"
+                    topic_instruction += f"""
+СТРУКТУРА ПОСТА (следуй ей!):
+{planned_post.structure}
+"""
                 if planned_post.facts:
-                    topic_instruction += f"\n\nИСПОЛЬЗУЙ ЭТИ ФАКТЫ: {', '.join(planned_post.facts)}"
+                    topic_instruction += f"""
+ИСПОЛЬЗУЙ ЭТИ ФАКТЫ: {', '.join(planned_post.facts)}
+"""
+                topic_instruction += """
+Если в источниках нет информации по теме — придумай правдоподобный кейс с реалистичными цифрами.
+НЕ ПЕРЕКЛЮЧАЙСЯ на другую тему! ПИШИ СТРОГО ПО ТЕМЕ!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
 
             post_data = await self.content_generator.generate_post(
                 sources,
-                post_type_instruction=post_type_config['prompt_addition'] + topic_instruction,
+                post_type_key=post_type_key,
+                topic_instruction=topic_instruction,
                 add_cta=post_type_config.get('add_cta', False),
                 cta_text=post_type_config.get('cta', ''),
                 add_personal_experience=post_type_config.get('add_personal_experience', False)

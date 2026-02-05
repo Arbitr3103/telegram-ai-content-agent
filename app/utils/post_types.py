@@ -19,68 +19,49 @@ CTA_POOL = [
     "📲 Оставить заявку → https://t.me/smart_analytics_mp_bot"
 ]
 
-# Импорт промптов
-from app.utils.prompts import (
-    POST_TYPE_PROMPTS,
-    CASE_PROMPT,
-    USEFUL_PROMPT,
-    LIFEHACK_PROMPT,
-    EXPERT_OPINION_PROMPT,
-    TOOLS_PROMPT,
-    MISTAKE_PROMPT,
-    CHECKLIST_PROMPT,
-    INTERACTIVE_PROMPT,
-)
-
 # Типы постов (8 типов)
+# Промпты для каждого типа хранятся в app/utils/prompts/post_types.py
+# и используются напрямую в content_generator.py через POST_TYPE_PROMPTS
 POST_TYPES = {
     "useful": {
         "name": "Полезная польза",
         "description": "Обучающий контент: метрики, способы, фишки",
         "frequency": 2,
-        "prompt_addition": USEFUL_PROMPT
     },
     "case": {
         "name": "Кейс/Доказательство",
         "description": "Реальный результат с цифрами ДО/ПОСЛЕ",
         "frequency": 1,
-        "prompt_addition": CASE_PROMPT
     },
     "interactive": {
         "name": "Интерактив/Мнение",
         "description": "Спорное мнение + вопрос к аудитории",
         "frequency": 1,
-        "prompt_addition": INTERACTIVE_PROMPT
     },
     "checklist": {
         "name": "Чек-лист",
         "description": "7 задач для месяца/события",
         "frequency": 1,
-        "prompt_addition": CHECKLIST_PROMPT
     },
     "tools": {
         "name": "Обзор инструментов",
         "description": "Топ-3 инструмента с плюсами/минусами",
         "frequency": 1,
-        "prompt_addition": TOOLS_PROMPT
     },
     "mistake": {
         "name": "История ошибки",
         "description": "Storytelling с драматургией и уроком",
         "frequency": 1,
-        "prompt_addition": MISTAKE_PROMPT
     },
     "lifehack": {
         "name": "Лайфхак",
         "description": "Пошаговая инструкция (бесплатно/быстро)",
         "frequency": 1,
-        "prompt_addition": LIFEHACK_PROMPT
     },
     "expert_opinion": {
         "name": "Экспертное мнение",
         "description": "Анализ изменений + прогноз + 3 действия",
         "frequency": 1,
-        "prompt_addition": EXPERT_OPINION_PROMPT
     }
 }
 
@@ -222,6 +203,9 @@ def get_post_type_from_plan(post_type_key: str) -> Tuple[str, dict]:
         post_type_config["cta"] = random.choice(CTA_POOL)
     else:
         post_type_config["cta"] = ""
+
+    # Добавляем флаг, нужно ли добавлять личный опыт
+    post_type_config["add_personal_experience"] = should_add_personal_experience()
 
     return post_type_key, post_type_config
 

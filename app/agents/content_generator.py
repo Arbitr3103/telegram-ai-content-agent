@@ -58,7 +58,8 @@ class ContentGenerator:
     async def generate_post(
         self,
         sources: List[Dict[str, Any]],
-        post_type_instruction: str = "",
+        post_type_key: str = "useful",
+        topic_instruction: str = "",
         add_cta: bool = False,
         cta_text: str = "",
         add_personal_experience: bool = False
@@ -68,7 +69,8 @@ class ContentGenerator:
 
         Args:
             sources: Список источников информации
-            post_type_instruction: Инструкция для типа поста
+            post_type_key: Ключ типа поста (case, useful, lifehack, etc.)
+            topic_instruction: Инструкция по теме из контент-плана
             add_cta: Нужно ли добавлять CTA-блок
             cta_text: Текст CTA-блока
             add_personal_experience: Нужно ли добавлять личный опыт
@@ -76,10 +78,13 @@ class ContentGenerator:
         Returns:
             Словарь с контентом поста
         """
-        logger.info(f"Generating post from {len(sources)} sources")
+        logger.info(f"Generating post type '{post_type_key}' from {len(sources)} sources")
 
         # Подготовка текста источников
         sources_text = self._prepare_sources_text(sources)
+
+        # Получаем промпт для типа поста (с эталонным примером)
+        post_type_prompt = POST_TYPE_PROMPTS.get(post_type_key, POST_TYPE_PROMPTS["useful"])
 
         # Личный опыт - условная инструкция и примеры
         if add_personal_experience:
@@ -90,13 +95,12 @@ class ContentGenerator:
         # CTA-инструкция для промпта
         if add_cta and cta_text:
             cta_instruction = f"""
-ОБЯЗАТЕЛЬНО ДОБАВЬ CTA-БЛОК В КОНЦЕ ПОСТА:
-После основного текста добавь пустую строку, затем разделитель и CTA:
+ОБЯЗАТЕЛЬНО ДОБАВЬ CTA-БЛОК В КОНЦЕ ПОСТА (после хештегов):
 
 ━━━━━━━━━━
 {cta_text}
 
-ВАЖНО: CTA-блок ОБЯЗАТЕЛЕН! Не пропускай его!
+ВАЖНО: CTA-блок ОБЯЗАТЕЛЕН! Добавь его ПОСЛЕ хештегов!
 """
         else:
             cta_instruction = "БЕЗ CTA-БЛОКА в конце поста."
@@ -107,7 +111,8 @@ class ContentGenerator:
             author_experience_examples=author_experience_examples,
             realistic_numbers_guide=REALISTIC_NUMBERS_GUIDE,
             sources=sources_text,
-            post_type_prompt=post_type_instruction,
+            post_type_prompt=post_type_prompt,
+            topic_instruction=topic_instruction,
             cta_instruction=cta_instruction
         )
 
